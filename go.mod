@@ -1,1 +1,1 @@
-module awesomeProject1
+module authentication-go
