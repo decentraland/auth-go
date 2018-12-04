@@ -4,11 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/decentraland/authentication-go/auth"
-	"github.com/decentraland/authentication-go/authentication"
-	"github.com/decentraland/authentication-go/authorization"
-	"github.com/decentraland/authentication-go/config"
-	"github.com/decentraland/authentication-go/utils"
+	"github.com/decentraland/auth-go/auth"
+	"github.com/decentraland/auth-go/authentication"
+	"github.com/decentraland/auth-go/authorization"
+	"github.com/decentraland/auth-go/config"
+	"github.com/decentraland/auth-go/utils"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decentraland/authentication-go/ephemeralkey"
-	http2 "github.com/decentraland/authentication-go/http"
+	"github.com/decentraland/auth-go/ephemeralkey"
+	http2 "github.com/decentraland/auth-go/http"
 	"github.com/stretchr/testify/assert"
 )
 

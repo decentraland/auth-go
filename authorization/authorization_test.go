@@ -1,7 +1,7 @@
 package authorization
 
 import (
-	http2 "github.com/decentraland/authentication-go/http"
+	http2 "github.com/decentraland/auth-go/http"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strings"

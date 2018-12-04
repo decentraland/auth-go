@@ -1,8 +1,8 @@
 package http
 
 import (
-	"github.com/decentraland/authentication-go/auth"
-	"github.com/decentraland/authentication-go/utils"
+	"github.com/decentraland/auth-go/auth"
+	"github.com/decentraland/auth-go/utils"
 	"net/http"
 	"strings"
 )

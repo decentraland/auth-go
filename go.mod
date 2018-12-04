@@ -1,4 +1,4 @@
-module github.com/decentraland/authentication-go
+module github.com/decentraland/auth-go
 
 require (
 	github.com/aristanetworks/goarista v0.0.0-20181109020153-5faa74ffbed7 // indirect

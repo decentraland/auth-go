@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"encoding/hex"
-	"github.com/decentraland/authentication-go/ethereum"
+	"github.com/decentraland/auth-go/ethereum"
 )
 
 // Credentials

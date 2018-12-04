@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decentraland/authentication-go/mocks"
+	"github.com/decentraland/auth-go/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )

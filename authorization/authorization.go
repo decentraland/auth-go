@@ -1,9 +1,9 @@
 package authorization
 
 import (
-	"github.com/decentraland/authentication-go/auth"
-	"github.com/decentraland/authentication-go/config"
-	"github.com/decentraland/authentication-go/utils"
+	"github.com/decentraland/auth-go/auth"
+	"github.com/decentraland/auth-go/config"
+	"github.com/decentraland/auth-go/utils"
 )
 
 type decentralandInvite struct {

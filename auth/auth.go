@@ -2,7 +2,7 @@ package auth
 
 import (
 	"crypto/sha256"
-	"github.com/decentraland/authentication-go/utils"
+	"github.com/decentraland/auth-go/utils"
 )
 
 type AuthProvider interface {

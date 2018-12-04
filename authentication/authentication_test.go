@@ -2,9 +2,9 @@ package authentication
 
 import (
 	"fmt"
-	"github.com/decentraland/authentication-go/config"
-	http2 "github.com/decentraland/authentication-go/http"
-	"github.com/decentraland/authentication-go/utils"
+	"github.com/decentraland/auth-go/config"
+	http2 "github.com/decentraland/auth-go/http"
+	"github.com/decentraland/auth-go/utils"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strconv"
