@@ -150,3 +150,7 @@ req, _ := http.TransformHttpRequest(httpRequest)
 ok, err := authHandler.ApproveRequest(req)
 ```
 
+## Copyright info
+
+This repository is protected with a standard Apache 2 licence. See the terms and conditions in the [LICENSE](https://github.com/decentraland/auth-go/blob/master/LICENSE) file.
+
