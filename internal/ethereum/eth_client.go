@@ -12,6 +12,7 @@ type EthClient interface {
 	NetVersion() (string, error)
 	ListAccounts() ([]string, error)
 	Sign(message string, address string, pass string) (string, error)
+	GetDefaultAccount() (string, error)
 }
 
 type EthClientImpl struct {
@@ -19,7 +20,7 @@ type EthClientImpl struct {
 }
 
 // NewEthClient creates a new Eth clien, if it fails to connect to the external resource, it will retrieve an error
-func NewEthClient(location string) (*EthClientImpl, error) {
+func NewEthClient(location string) (EthClient, error) {
 	c, err := rpc.Dial(location)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to connect to Eth node: %s", err.Error()))
@@ -52,4 +53,16 @@ func (c *EthClientImpl) Sign(message string, address string, pass string) (strin
 		return "", err
 	}
 	return r, nil
+}
+
+// GetDefaultAccount gets the default account (first on the list) to generate the Ephemeral keys
+func (c *EthClientImpl) GetDefaultAccount() (string, error) {
+	accounts, err := c.ListAccounts()
+	if err != nil {
+		return "", err
+	}
+	if len(accounts) < 1 {
+		return "", errors.New("No Account found")
+	}
+	return accounts[0], nil
 }

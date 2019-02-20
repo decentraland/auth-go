@@ -5,6 +5,7 @@ require (
 	github.com/btcsuite/btcd v0.0.0-20181123190223-3dcf298fed2d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/ethereum/go-ethereum v1.8.18
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/mock v1.1.1

@@ -1,7 +1,7 @@
 package authorization
 
 import (
-	http2 "github.com/decentraland/auth-go/http"
+	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strings"
@@ -57,14 +57,14 @@ var authorizeRequestTc = []authorizeRequestData{
 
 func TestAuthorizeRequest(t *testing.T) {
 	dcl := &inMemoryDcl{storage: initStorage()}
-	inviteStrategy := &decentralandInvite{dcl: dcl}
+	inviteStrategy := &InviteStrategy{dcl: dcl}
 	for _, tc := range authorizeRequestTc {
 		t.Run(tc.name, func(t *testing.T) {
 			req, err := buildRequest(tc.requestHeaders)
 			if err != nil {
 				t.Fail()
 			}
-			r, err := http2.TransformHttpRequest(req)
+			r, err := auth.MakeFromHttpRequest(req)
 			if err != nil {
 				t.Fail()
 			}

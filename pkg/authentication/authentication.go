@@ -5,9 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/decentraland/auth-go/auth"
-	"github.com/decentraland/auth-go/config"
-	"github.com/decentraland/auth-go/utils"
+	"github.com/decentraland/auth-go/internal/utils"
+	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
@@ -18,28 +17,40 @@ import (
 )
 
 const certificatePattern = ".*Date: (.*) Expires: (.*)"
+const identityPattern = "decentraland:(.*)\\/temp\\/(.*)"
 
-type ephemeralKeysAuthentication struct {
-	config *config.AuthConfig
+// Authenticate all requests
+type AllowAllStrategy struct{}
+
+func (s *AllowAllStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
+	return true, nil
 }
 
-func NewStrategy(c *config.AuthConfig) auth.AuthenticationStrategy {
-	return &ephemeralKeysAuthentication{config: c}
+type SelfGrantedStrategy struct {
+	RequestLifeSpan int64
 }
 
 // Validates the request credentials generated with the EphemeralKeys protocol
-func (e *ephemeralKeysAuthentication) Authenticate(r *auth.AuthRequest) (bool, error) {
+func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 	cred := r.Credentials
 	idHeader, err := utils.ExtractRequiredField(cred, "x-identity")
 	if err != nil {
 		return false, err
 	}
-	certAddress, ephPbKey, err := utils.ParseIdentity(idHeader)
+
+	tokens, err := utils.ParseTokensWithRegex(idHeader, identityPattern)
 	if err != nil {
 		return false, err
 	}
 
-	if err = checkExpiration(cred, e.config.RequestAllowedTTL); err != nil {
+	if len(tokens) != 2 {
+		return false, fmt.Errorf("unable to exctract required information from 'x-identity' header")
+	}
+
+	certAddress := tokens[0]
+	ephPbKey := tokens[1]
+
+	if err = checkRequestExpiration(cred, s.RequestLifeSpan); err != nil {
 		return false, err
 	}
 
@@ -55,18 +66,18 @@ func (e *ephemeralKeysAuthentication) Authenticate(r *auth.AuthRequest) (bool, e
 }
 
 // Verifies request expiration
-func checkExpiration(m map[string]string, ttl int64) error {
+func checkRequestExpiration(m map[string]string, ttl int64) error {
 	timestamp, err := utils.ExtractRequiredField(m, "x-timestamp")
 	if err != nil {
 		return err
 	}
 
-	milliseconds, err := strconv.ParseInt(timestamp, 10, 64)
+	seconds, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
 		return errors.New("invalid timestamp")
 	}
-	now := utils.GetCurrentTimestamp()
-	if milliseconds > now || now-milliseconds > (ttl*1000) {
+	now := time.Now().Unix()
+	if seconds > now || now-seconds > ttl {
 		return errors.New("request expired")
 	}
 	return nil

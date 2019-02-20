@@ -2,7 +2,9 @@ package auth
 
 import (
 	"crypto/sha256"
-	"github.com/decentraland/auth-go/utils"
+	"github.com/decentraland/auth-go/internal/utils"
+	"net/http"
+	"strings"
 )
 
 type AuthProvider interface {
@@ -77,12 +79,42 @@ func (r *AuthRequest) Hash() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	toSign := []byte(method)
-	toSign = append(toSign, []byte(url)...)
-	toSign = append(toSign, []byte(timestamp)...)
+	toSign := []byte{}
+
+	if len(method) > 0 {
+		toSign = append(toSign, []byte(method)...)
+	}
+	if len(url) > 0 {
+		toSign = append(toSign, []byte(url)...)
+	}
+	if len(timestamp) > 0 {
+		toSign = append(toSign, []byte(timestamp)...)
+	}
+
 	if r.Content != nil {
 		toSign = append(toSign, r.Content...)
 	}
+
 	result := sha256.Sum256(toSign)
 	return result[:], nil
+}
+
+// Generate a AuthRequest from a http.Request
+func MakeFromHttpRequest(r *http.Request) (*AuthRequest, error) {
+	credentials := make(map[string]string)
+	for key, value := range r.Header {
+		credentials[strings.ToLower(key)] = value[0]
+	}
+
+	content, err := utils.ReadRequestBody(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthRequest{
+		Credentials: credentials,
+		Content:     content,
+		Method:      r.Method,
+		URL:         r.URL.String(),
+	}, nil
 }

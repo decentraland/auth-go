@@ -1,13 +1,7 @@
-.PHONY: init build clean test coverage
+.PHONY: init test coverage
 
 init:
 	git config core.hooksPath .githooks
-
-build:
-	go build
-
-clean:
-	go clean
 
 test:
 	go test -v ./... -count=1

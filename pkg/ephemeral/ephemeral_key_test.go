@@ -1,4 +1,4 @@
-package ephemeralkey
+package ephemeral
 
 import (
 	"bytes"
@@ -23,20 +23,13 @@ func TestGenerateEphemeralKeys(t *testing.T) {
 	mockEth := mocks.NewMockEthClient(mockController)
 
 	mockEth.EXPECT().NetVersion().Return("1", nil).Times(1)
-	mockEth.EXPECT().ListAccounts().Return([]string{testAddress}, nil).Times(1)
 	//The message to sign will change each time
 	mockEth.EXPECT().Sign(gomock.Any(), testAddress, "").Return(expectedSignature, nil).Times(1)
 
 	duration := time.Minute * time.Duration(ttlInMinutes)
-	var g = &EphemeralKeysGenerator{ethClient: mockEth, timeToLive: duration}
 
-	acc, err := g.GetDefaultAccount()
-
-	if err != nil {
-		t.Fail()
-	}
-
-	credential, err := g.GenerateEphemeralKeys("0x12345", acc, "")
+	accountInfo := &EthAccountInfo{TokenAddress: "0x12345", Account: testAddress, Passphrase: ""}
+	credential, err := GenerateEthBasedCredential(accountInfo, mockEth, ttlInMinutes)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, credential)
@@ -53,26 +46,24 @@ func TestGenerateDifferentKeys(t *testing.T) {
 	mockEth := mocks.NewMockEthClient(mockController)
 
 	mockEth.EXPECT().NetVersion().Return("1", nil).AnyTimes()
-	mockEth.EXPECT().ListAccounts().Return([]string{testAddress}, nil).AnyTimes()
 	//The message to sign will change each time
 	mockEth.EXPECT().Sign(gomock.Any(), testAddress, "").Return(expectedSignature, nil).AnyTimes()
 
-	duration := time.Minute * time.Duration(ttlInMinutes)
-	var g = &EphemeralKeysGenerator{ethClient: mockEth, timeToLive: duration}
+	accountInfo := &EthAccountInfo{TokenAddress: "0x12345", Account: testAddress, Passphrase: ""}
 
-	acc, err := g.GetDefaultAccount()
-
+	c1, err := GenerateEthBasedCredential(accountInfo, mockEth, ttlInMinutes)
+	if err != nil {
+		t.Fail()
+	}
+	c2, err := GenerateEthBasedCredential(accountInfo, mockEth, ttlInMinutes)
 	if err != nil {
 		t.Fail()
 	}
 
-	c1, err := g.GenerateEphemeralKeys("0x12345", acc, "")
-	c2, err := g.GenerateEphemeralKeys("0x12345", acc, "")
-
 	assert.False(t, bytes.Equal(crypto.FromECDSA(c1.EphemeralPrivateKey), crypto.FromECDSA(c2.EphemeralPrivateKey)))
 }
 
-func assertExpirationTime(t *testing.T, c *Credentials, duration time.Duration) {
+func assertExpirationTime(t *testing.T, c *EthBasedCredential, duration time.Duration) {
 	bs, err := hex.DecodeString(c.Message[2:])
 	if err != nil {
 		t.Errorf(err.Error())
