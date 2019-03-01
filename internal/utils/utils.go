@@ -15,13 +15,18 @@ import (
 	"strings"
 )
 
-// Extracts headers values. If the key is not present retrieves an error
-func ExtractRequiredField(m map[string]string, key string) (string, error) {
-	r := m[key]
-	if len(r) == 0 {
-		return "", fmt.Errorf("missing required credential: %s", key)
+// Validates all required credentials are present
+func ValidateRequiredCredentials(m map[string]string, keys []string) error {
+	var missing []string
+	for _, key := range keys {
+		if _, ok := m[key]; !ok {
+			missing = append(missing, key)
+		}
 	}
-	return r, nil
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required credentials: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }
 
 // Adds the Ox prefix to the string if not present

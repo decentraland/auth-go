@@ -33,12 +33,16 @@ type SelfGrantedStrategy struct {
 // Validates the request credentials generated with the EphemeralKeys protocol
 func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 	cred := r.Credentials
-	idHeader, err := utils.ExtractRequiredField(cred, "x-identity")
-	if err != nil {
+	requiredCredentials := []string{"x-identity", "x-timestamp", "x-certificate", "x-certificate-signature", "x-signature", "x-auth-type"}
+	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return false, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(idHeader, identityPattern)
+	if err := validateCertificateType(cred, "self-granted"); err != nil {
+		return false, err
+	}
+
+	tokens, err := utils.ParseTokensWithRegex(cred["x-identity"], identityPattern)
 	if err != nil {
 		return false, err
 	}
@@ -66,11 +70,8 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 }
 
 // Verifies request expiration
-func checkRequestExpiration(m map[string]string, ttl int64) error {
-	timestamp, err := utils.ExtractRequiredField(m, "x-timestamp")
-	if err != nil {
-		return err
-	}
+func checkRequestExpiration(cred map[string]string, ttl int64) error {
+	timestamp := cred["x-timestamp"]
 
 	seconds, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
@@ -91,12 +92,7 @@ func validateRequestSignature(r *auth.AuthRequest, pubKey string) error {
 		return err
 	}
 
-	signature, err := utils.ExtractRequiredField(cred, "x-signature")
-	if err != nil {
-		return err
-	}
-
-	if err = validateSignature(signature, msg, pubKey); err != nil {
+	if err = validateSignature(cred["x-signature"], msg, pubKey); err != nil {
 		return err
 	}
 	return nil
@@ -129,20 +125,14 @@ func isValidSignature(signature string, message []byte, pubKey string) (bool, er
 
 // Validates the information of the credentials created during the ephemeralKeys generation
 func validateCertificate(m map[string]string, address string) error {
-	certificate, err := utils.ExtractRequiredField(m, "x-certificate")
-	if err != nil {
-		return err
-	}
-	certSignature, err := utils.ExtractRequiredField(m, "x-certificate-signature")
-	if err != nil {
+	certificate := m["x-certificate"]
+	certSignature := m["x-certificate-signature"]
+
+	if err := validateCertificateExpiration(certificate); err != nil {
 		return err
 	}
 
-	if err = validateCertificateExpiration(certificate); err != nil {
-		return err
-	}
-
-	if err = validateCertificateSignature(certificate, certSignature, address); err != nil {
+	if err := validateCertificateSignature(certificate, certSignature, address); err != nil {
 		return err
 	}
 
@@ -255,4 +245,12 @@ func decodeCertificateSignature(signature string) ([]byte, error) {
 		sigBytes[64] -= 27
 	}
 	return sigBytes, nil
+}
+
+func validateCertificateType(cred map[string]string, credType string) error {
+	authType := cred["x-auth-type"]
+	if strings.ToLower(authType) != strings.ToLower(credType) {
+		return errors.New("invalid credential type")
+	}
+	return nil
 }

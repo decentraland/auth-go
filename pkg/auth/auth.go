@@ -75,12 +75,9 @@ func (e *AuthorizationError) Error() string {
 func (r *AuthRequest) Hash() ([]byte, error) {
 	method := r.Method
 	url := r.URL
-	timestamp, err := utils.ExtractRequiredField(r.Credentials, "x-timestamp")
-	if err != nil {
-		return nil, err
-	}
-	toSign := []byte{}
+	timestamp := r.Credentials["x-timestamp"]
 
+	toSign := []byte{}
 	if len(method) > 0 {
 		toSign = append(toSign, []byte(method)...)
 	}
