@@ -54,7 +54,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 	certAddress := tokens[0]
 	ephPbKey := tokens[1]
 
-	if err = checkRequestExpiration(cred, s.RequestLifeSpan); err != nil {
+	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestLifeSpan); err != nil {
 		return false, err
 	}
 
@@ -62,7 +62,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	if err = validateCertificate(cred, certAddress); err != nil {
+	if err = validateCertificate(cred["x-certificate"], cred["x-certificate-signature"], certAddress); err != nil {
 		return false, err
 	}
 
@@ -70,9 +70,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 }
 
 // Verifies request expiration
-func checkRequestExpiration(cred map[string]string, ttl int64) error {
-	timestamp := cred["x-timestamp"]
-
+func checkRequestExpiration(timestamp string, ttl int64) error {
 	seconds, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
 		return errors.New("invalid timestamp")
@@ -100,34 +98,24 @@ func validateRequestSignature(r *auth.AuthRequest, pubKey string) error {
 
 // Verifies  that the given pubkey created signature over message.
 func validateSignature(signature string, message []byte, pubKey string) error {
-	valid, err := isValidSignature(utils.FormatHexString(signature), message, utils.FormatHexString(pubKey))
+	sigBytes, err := hexutil.Decode(utils.FormatHexString(signature))
 	if err != nil {
 		return err
 	}
-	if !valid {
+
+	key, err := hexutil.Decode(utils.FormatHexString(pubKey))
+	if err != nil {
+		return err
+	}
+
+	if !secp256k1.VerifySignature(key, message, sigBytes) {
 		return errors.New("invalid Signature")
 	}
 	return nil
 }
 
-// Verify if the signature is valid for a given msg and public key
-// The signature and the key should be hex strings
-func isValidSignature(signature string, message []byte, pubKey string) (bool, error) {
-	sigBytes, err := hexutil.Decode(signature)
-	if err != nil {
-		return false, err
-	}
-
-	key, err := hexutil.Decode(pubKey)
-	verified := secp256k1.VerifySignature(key, message, sigBytes)
-	return verified, nil
-}
-
 // Validates the information of the credentials created during the ephemeralKeys generation
-func validateCertificate(m map[string]string, address string) error {
-	certificate := m["x-certificate"]
-	certSignature := m["x-certificate-signature"]
-
+func validateCertificate(certificate string, certSignature string, address string) error {
 	if err := validateCertificateExpiration(certificate); err != nil {
 		return err
 	}

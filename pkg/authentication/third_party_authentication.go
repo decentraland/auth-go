@@ -56,7 +56,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 
 	ephPbKey := tokens[0]
 
-	if err = checkRequestExpiration(cred, s.RequestLifeSpan); err != nil {
+	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestLifeSpan); err != nil {
 		return false, err
 	}
 
