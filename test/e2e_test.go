@@ -71,15 +71,15 @@ func TestEphemeralKeys(t *testing.T) {
 }
 
 type thirdPartyTestCase struct {
-	name            string
-	credentialTTL   int
-	accessTokenTTL  time.Duration
-	requestTTL      int64
-	request         *http.Request
-	tokenGen        func(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (string, error)
-	entitiesGen     func(id string, pk *ecdsa.PublicKey) map[string]*ecdsa.PublicKey
-	wait            func()
-	resultAssertion func(ok bool, err error, t *testing.T)
+	name              string
+	credentialTTL     int
+	accessTokenTTL    time.Duration
+	requestTTL        int64
+	request           *http.Request
+	tokenGen          func(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (string, error)
+	alternativePubKey *ecdsa.PublicKey
+	wait              func()
+	resultAssertion   func(ok bool, err error, t *testing.T)
 }
 
 var tpTable = []thirdPartyTestCase{
@@ -89,7 +89,6 @@ var tpTable = []thirdPartyTestCase{
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
-		entitiesGen:     toMap,
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertOk,
 	},
@@ -99,7 +98,6 @@ var tpTable = []thirdPartyTestCase{
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
-		entitiesGen:     toMap,
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertOk,
 	}, {
@@ -110,7 +108,6 @@ var tpTable = []thirdPartyTestCase{
 		tokenGen: func(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (s string, e error) {
 			return "*.*.*", nil
 		},
-		entitiesGen:     toMap,
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertError("decoding Access Token error"),
 	}, {
@@ -119,39 +116,23 @@ var tpTable = []thirdPartyTestCase{
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        missingDataToken,
-		entitiesGen:     toMap,
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertError("invalid Access Token payload"),
 	}, {
-		name:           "Unknown Entity",
-		credentialTTL:  10,
-		accessTokenTTL: 60,
-		requestTTL:     1000,
-		tokenGen:       generateAccessToken,
-		entitiesGen: func(id string, pk *ecdsa.PublicKey) map[string]*ecdsa.PublicKey {
-			return map[string]*ecdsa.PublicKey{"notId": pk}
-		},
-		request:         buildPostRequest(),
-		resultAssertion: thirdPartyAssertError("unknown entity"),
-	}, {
-		name:           "Invalid Entity public Key",
-		credentialTTL:  10,
-		accessTokenTTL: 60,
-		requestTTL:     1000,
-		tokenGen:       generateAccessToken,
-		entitiesGen: func(id string, pk *ecdsa.PublicKey) map[string]*ecdsa.PublicKey {
-			newKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-			return map[string]*ecdsa.PublicKey{id: &newKey.PublicKey}
-		},
-		request:         buildPostRequest(),
-		resultAssertion: thirdPartyAssertError("error validating Access Token"),
+		name:              "Invalid Entity public Key",
+		credentialTTL:     10,
+		accessTokenTTL:    60,
+		requestTTL:        1000,
+		tokenGen:          generateAccessToken,
+		alternativePubKey: getRandomKey(),
+		request:           buildPostRequest(),
+		resultAssertion:   thirdPartyAssertError("error validating Access Token"),
 	}, {
 		name:            "Expired Request",
 		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1,
 		tokenGen:        generateAccessToken,
-		entitiesGen:     toMap,
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertError("request expired"),
 		wait:            wait(3 * time.Second),
@@ -162,7 +143,6 @@ var tpTable = []thirdPartyTestCase{
 		accessTokenTTL:  1,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
-		entitiesGen:     toMap,
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertError("expired token"),
 		wait:            wait(3 * time.Second),
@@ -193,8 +173,13 @@ func TestThirdPartyKeys(t *testing.T) {
 				t.Error(err.Error())
 			}
 
+			key := &serverKey.PublicKey
+			if tc.alternativePubKey != nil {
+				key = tc.alternativePubKey
+			}
+
 			authHandler := auth.NewAuthProvider(
-				&authentication.ThirdPartyStrategy{RequestLifeSpan: tc.requestTTL, TrustedEntities: tc.entitiesGen(serverId, &serverKey.PublicKey)},
+				&authentication.ThirdPartyStrategy{RequestLifeSpan: tc.requestTTL, TrustedKey: key},
 				&authorization.AllowAllStrategy{})
 
 			r, err := auth.MakeFromHttpRequest(req)
@@ -221,7 +206,6 @@ var noHttpRequestTable = []thirdPartyTestCase{
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
-		entitiesGen:     toMap,
 		resultAssertion: thirdPartyAssertOk,
 	}, {
 		name:           "Invalid Format Access Token",
@@ -231,7 +215,6 @@ var noHttpRequestTable = []thirdPartyTestCase{
 		tokenGen: func(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (s string, e error) {
 			return "*.*.*", nil
 		},
-		entitiesGen:     toMap,
 		resultAssertion: thirdPartyAssertError("decoding Access Token error"),
 	}, {
 		name:            "Invalid Data Access Token",
@@ -239,36 +222,21 @@ var noHttpRequestTable = []thirdPartyTestCase{
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        missingDataToken,
-		entitiesGen:     toMap,
 		resultAssertion: thirdPartyAssertError("invalid Access Token payload"),
 	}, {
-		name:           "Unknown Entity",
-		credentialTTL:  10,
-		accessTokenTTL: 60,
-		requestTTL:     1000,
-		tokenGen:       generateAccessToken,
-		entitiesGen: func(id string, pk *ecdsa.PublicKey) map[string]*ecdsa.PublicKey {
-			return map[string]*ecdsa.PublicKey{"notId": pk}
-		},
-		resultAssertion: thirdPartyAssertError("unknown entity"),
-	}, {
-		name:           "Invalid Entity public Key",
-		credentialTTL:  10,
-		accessTokenTTL: 60,
-		requestTTL:     1000,
-		tokenGen:       generateAccessToken,
-		entitiesGen: func(id string, pk *ecdsa.PublicKey) map[string]*ecdsa.PublicKey {
-			newKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-			return map[string]*ecdsa.PublicKey{id: &newKey.PublicKey}
-		},
-		resultAssertion: thirdPartyAssertError("error validating Access Token"),
+		name:              "Invalid Entity public Key",
+		credentialTTL:     10,
+		accessTokenTTL:    60,
+		requestTTL:        1000,
+		tokenGen:          generateAccessToken,
+		alternativePubKey: getRandomKey(),
+		resultAssertion:   thirdPartyAssertError("error validating Access Token"),
 	}, {
 		name:            "Expired Request",
 		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1,
 		tokenGen:        generateAccessToken,
-		entitiesGen:     toMap,
 		resultAssertion: thirdPartyAssertError("request expired"),
 		wait:            wait(3 * time.Second),
 	},
@@ -278,7 +246,6 @@ var noHttpRequestTable = []thirdPartyTestCase{
 		accessTokenTTL:  1,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
-		entitiesGen:     toMap,
 		resultAssertion: thirdPartyAssertError("expired token"),
 		wait:            wait(3 * time.Second),
 	},
@@ -318,8 +285,12 @@ func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
 				t.Error(err.Error())
 			}
 
+			key := &serverKey.PublicKey
+			if tc.alternativePubKey != nil {
+				key = tc.alternativePubKey
+			}
 			authHandler := auth.NewAuthProvider(
-				&authentication.ThirdPartyStrategy{RequestLifeSpan: tc.requestTTL, TrustedEntities: tc.entitiesGen(serverId, &serverKey.PublicKey)},
+				&authentication.ThirdPartyStrategy{RequestLifeSpan: tc.requestTTL, TrustedKey: key},
 				&authorization.AllowAllStrategy{})
 
 			r := &auth.AuthRequest{Credentials: fields, Content: msg}
@@ -361,12 +332,6 @@ func missingDataToken(serverKey *ecdsa.PrivateKey, _ string, duration time.Durat
 	})
 
 	return claims.SignedString(serverKey)
-}
-
-func toMap(id string, pk *ecdsa.PublicKey) map[string]*ecdsa.PublicKey {
-	entities := map[string]*ecdsa.PublicKey{}
-	entities[id] = pk
-	return entities
 }
 
 func wait(d time.Duration) func() {
@@ -428,4 +393,9 @@ func randomMessage(length int) []byte {
 	}
 
 	return b
+}
+
+func getRandomKey() *ecdsa.PublicKey {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	return &key.PublicKey
 }

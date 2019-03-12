@@ -1,0 +1,34 @@
+package keys
+
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/hex"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestPemEncodePublicKey(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal()
+	}
+	firstEncode := hex.EncodeToString(elliptic.Marshal(key.PublicKey.Curve, key.PublicKey.X, key.PublicKey.Y))
+
+	encoded, err := PemEncodePublicKey(&key.PublicKey)
+	if err != nil {
+		t.Fatal()
+	}
+
+	assert.NotEmpty(t, encoded)
+
+	otherPK, err := PemDecodePublicKey(encoded)
+	if err != nil {
+		t.Fatal()
+	}
+
+	secondEncode := hex.EncodeToString(elliptic.Marshal(otherPK.Curve, otherPK.X, otherPK.Y))
+
+	assert.Equal(t, firstEncode, secondEncode)
+}

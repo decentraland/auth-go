@@ -2,9 +2,7 @@ package utils
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
@@ -69,21 +67,6 @@ func ParseTokensWithRegex(idHeader string, pattern string) ([]string, error) {
 	}
 	matches := idRegex.FindAllStringSubmatch(idHeader, -1)
 	return matches[0][1:], nil
-}
-
-// Read a public key from a hex string (A P-256 FIPS 186.3 with ANSI X9.62 encoding (ecdsa public key of  a 256 bits curve)).
-func ReadPublicKey(hexKey string) (*ecdsa.PublicKey, error) {
-	key, err := hex.DecodeString(hexKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read public key: %s", err.Error())
-	}
-
-	x, y := elliptic.Unmarshal(elliptic.P256(), key)
-	return &ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-		X:     x,
-		Y:     y,
-	}, nil
 }
 
 // Retrieves a sha256 from the following message: request method + request url + timestamp + request body

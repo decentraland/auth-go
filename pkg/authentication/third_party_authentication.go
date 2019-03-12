@@ -18,7 +18,7 @@ const thirdPartyUserIdPattern = "public key derived address: (.*)"
 
 type ThirdPartyStrategy struct {
 	RequestLifeSpan int64
-	TrustedEntities map[string]*ecdsa.PublicKey
+	TrustedKey      *ecdsa.PublicKey
 }
 
 type accessTokenPayload struct {
@@ -64,14 +64,14 @@ func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	if err = validateAccessToken(cred["x-access-token"], s.TrustedEntities, ephPbKey); err != nil {
+	if err = validateAccessToken(cred["x-access-token"], s.TrustedKey, ephPbKey); err != nil {
 		return false, err
 	}
 
 	return true, nil
 }
 
-func validateAccessToken(token string, entities map[string]*ecdsa.PublicKey, ephKey string) error {
+func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) error {
 	segments := strings.Split(token, ".")
 	if len(segments) != 3 {
 		return errors.New("invalid Access Token")
@@ -94,11 +94,7 @@ func validateAccessToken(token string, entities map[string]*ecdsa.PublicKey, eph
 		return errors.New("expired token")
 	}
 
-	key, ok := entities[payload.ServerId]
-
-	if !ok {
-		return fmt.Errorf("unknown entity: %s", payload.ServerId)
-	} else if _, err := jwt.Parse(token, getKeyJWT(key.X, key.Y)); err != nil {
+	if _, err := jwt.Parse(token, getKeyJWT(trustedKey.X, trustedKey.Y)); err != nil {
 		return fmt.Errorf("error validating Access Token: %s", err.Error())
 	}
 

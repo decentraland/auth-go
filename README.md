@@ -106,8 +106,8 @@ The service provider will need to know the entity who signs the access token, ot
 ##### HTTP Requests
 ```go
 reqTTL := 30 // Request time to live in seconds
-trustedEntities := map[string]*ecdsa.PublicKey{}
-authnStrategy := &authentication.ThirdPartyStrategy{RequestLifeSpan: reqTTL, TrustedEntities: trustedEntities)}
+trustedKey := keys.PemDecodePublicKey(pemEncodedPublicKeyString)
+authnStrategy := &authentication.ThirdPartyStrategy{RequestLifeSpan: reqTTL, TrustedKey: trustedKey)}
 authzStrategy := &authorization.AllowAllStrategy{}
 authHandler := auth.NewAuthProvider(authnStrategy, authzStrategy)
 
