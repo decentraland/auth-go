@@ -42,7 +42,7 @@ func NewAuthProvider(authn AuthenticationStrategy, authz AuthorizationStrategy) 
 func (ah *authProviderImpl) ApproveRequest(r *AuthRequest) (bool, error) {
 	auth, err := ah.authn.Authenticate(r)
 	if err != nil {
-		return false, &AuthenticationError{err.Error()}
+		return false, AuthenticationError{err.Error()}
 	}
 
 	if !auth {
@@ -51,7 +51,7 @@ func (ah *authProviderImpl) ApproveRequest(r *AuthRequest) (bool, error) {
 
 	aut, err := ah.authz.Authorize(r)
 	if err != nil {
-		return false, &AuthorizationError{err.Error()}
+		return false, AuthorizationError{err.Error()}
 	}
 	return aut, nil
 }
