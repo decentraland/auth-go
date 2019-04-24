@@ -35,12 +35,12 @@ func assertFalseResult(t *testing.T, result bool, err error) {
 var authorizeRequestTc = []authorizeRequestData{
 	{
 		name:            "Authorized AuthRequest",
-		requestHeaders:  map[string]string{"x-identity": validIdentity},
+		requestHeaders:  map[string]string{auth.HeaderIdentity: validIdentity},
 		resultAssertion: assertTrueResult,
 	},
 	{
 		name:            "Uninvited Address",
-		requestHeaders:  map[string]string{"x-identity": notInvitedIdentity},
+		requestHeaders:  map[string]string{auth.HeaderIdentity: notInvitedIdentity},
 		resultAssertion: assertFalseResult,
 	},
 	{
@@ -50,7 +50,7 @@ var authorizeRequestTc = []authorizeRequestData{
 	},
 	{
 		name:            "Invalid header",
-		requestHeaders:  map[string]string{"x-identity": "not an identity"},
+		requestHeaders:  map[string]string{auth.HeaderIdentity: "not an identity"},
 		resultAssertion: assertError,
 	},
 }

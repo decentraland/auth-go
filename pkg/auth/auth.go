@@ -115,3 +115,13 @@ func MakeFromHttpRequest(r *http.Request) (*AuthRequest, error) {
 		URL:         r.URL.String(),
 	}, nil
 }
+
+const (
+	HeaderIdentity      = "x-identity"
+	HeaderTimestamp     = "x-timestamp"
+	HeaderAccessToken   = "x-access-token"
+	HeaderSignature     = "x-signature"
+	HeaderAuthType      = "x-auth-type"
+	HeaderCert          = "x-certificate"
+	HeaderCertSignature = "x-certificate-signature"
+)

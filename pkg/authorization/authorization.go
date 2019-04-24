@@ -18,12 +18,12 @@ func NewInviteStrategy(dclApi string) *InviteStrategy {
 }
 
 func (di *InviteStrategy) Authorize(r *auth.AuthRequest) (bool, error) {
-	requiredCredentials := []string{"x-identity"}
+	requiredCredentials := []string{auth.HeaderIdentity}
 	if err := utils.ValidateRequiredCredentials(r.Credentials, requiredCredentials); err != nil {
 		return false, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(r.Credentials["x-identity"], identityPattern)
+	tokens, err := utils.ParseTokensWithRegex(r.Credentials[auth.HeaderIdentity], identityPattern)
 	if err != nil {
 		return false, err
 	}

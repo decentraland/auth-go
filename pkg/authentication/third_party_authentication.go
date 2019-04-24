@@ -36,7 +36,7 @@ func (a AccessTokenPayload) isValid() bool {
 func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 	cred := r.Credentials
 
-	requiredCredentials := []string{"x-identity", "x-timestamp", "x-access-token", "x-signature", "x-auth-type"}
+	requiredCredentials := []string{auth.HeaderIdentity, auth.HeaderTimestamp, auth.HeaderAccessToken, "x-signature", auth.HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return false, err
 	}
@@ -45,7 +45,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(cred["x-identity"], thirdPartyUserIdPattern)
+	tokens, err := utils.ParseTokensWithRegex(cred[auth.HeaderIdentity], thirdPartyUserIdPattern)
 	if err != nil {
 		return false, err
 	}
@@ -64,7 +64,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	if err = validateAccessToken(cred["x-access-token"], s.TrustedKey, ephPbKey); err != nil {
+	if err = validateAccessToken(cred[auth.HeaderAccessToken], s.TrustedKey, ephPbKey); err != nil {
 		return false, err
 	}
 

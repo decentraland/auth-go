@@ -33,7 +33,7 @@ type SelfGrantedStrategy struct {
 // Validates the request credentials generated with the EphemeralKeys protocol
 func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 	cred := r.Credentials
-	requiredCredentials := []string{"x-identity", "x-timestamp", "x-certificate", "x-certificate-signature", "x-signature", "x-auth-type"}
+	requiredCredentials := []string{auth.HeaderIdentity, auth.HeaderTimestamp, auth.HeaderCert, auth.HeaderCertSignature, auth.HeaderSignature, auth.HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return false, err
 	}
@@ -42,7 +42,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(cred["x-identity"], identityPattern)
+	tokens, err := utils.ParseTokensWithRegex(cred[auth.HeaderIdentity], identityPattern)
 	if err != nil {
 		return false, err
 	}
@@ -62,7 +62,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	if err = validateCertificate(cred["x-certificate"], cred["x-certificate-signature"], certAddress); err != nil {
+	if err = validateCertificate(cred[auth.HeaderCert], cred["x-certificate-signature"], certAddress); err != nil {
 		return false, err
 	}
 
