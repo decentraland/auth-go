@@ -21,7 +21,7 @@ type ThirdPartyStrategy struct {
 	TrustedKey      *ecdsa.PublicKey
 }
 
-type accessTokenPayload struct {
+type AccessTokenPayload struct {
 	EphemeralKey string `json:"ephemeral_key"`
 	Expiration   int64  `json:"exp"`
 	ServerId     string `json:"server_id"`
@@ -29,7 +29,7 @@ type accessTokenPayload struct {
 	Version      string `json:"version"`
 }
 
-func (a accessTokenPayload) isValid() bool {
+func (a AccessTokenPayload) isValid() bool {
 	return a.EphemeralKey != "" && a.Expiration > 0 && a.ServerId != "" && a.UserId != "" && a.Version != ""
 }
 
@@ -71,19 +71,26 @@ func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 	return true, nil
 }
 
-func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) error {
+func ExtractAuthTokenPayload(token string) (*AccessTokenPayload, error) {
 	segments := strings.Split(token, ".")
 	if len(segments) != 3 {
-		return errors.New("invalid Access Token")
+		return nil, errors.New("invalid Access Token")
 	}
 	cStr, err := jwt.DecodeSegment(segments[1])
 	if err != nil {
-		return fmt.Errorf("decoding Access Token error: %s", err.Error())
+		return nil, fmt.Errorf("decoding Access Token error: %s", err.Error())
 	}
-	var payload accessTokenPayload
+	var payload AccessTokenPayload
 	err = json.Unmarshal([]byte(cStr), &payload)
 	if err != nil || !payload.isValid() {
-		return errors.New("invalid Access Token payload")
+		return nil, errors.New("invalid Access Token payload")
+	}
+	return &payload, nil
+}
+func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) error {
+	payload, err := ExtractAuthTokenPayload(token)
+	if err != nil {
+		return err
 	}
 
 	if strings.ToLower(ephKey) != strings.ToLower(payload.EphemeralKey) {
