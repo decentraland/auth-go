@@ -22,8 +22,6 @@ import (
 	"time"
 )
 
-const serverId = "decentraland-auth"
-
 var runIntegrationTests = os.Getenv("RUN_IT") == "true"
 
 func TestEphemeralKeys(t *testing.T) {
@@ -98,7 +96,7 @@ var tpTable = []thirdPartyTestCase{
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
-		request:         buildPostRequest(),
+		request:         buildGetRequest(),
 		resultAssertion: thirdPartyAssertOk,
 	}, {
 		name:           "Invalid Format Access Token",
@@ -315,7 +313,6 @@ func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, duration ti
 	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"user_id":       "userId",
 		"ephemeral_key": ephKey,
-		"server_id":     serverId,
 		"version":       "1.0",
 		"exp":           time.Now().Add(time.Second * duration).Unix(),
 	})
@@ -326,7 +323,6 @@ func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, duration ti
 func missingDataToken(serverKey *ecdsa.PrivateKey, _ string, duration time.Duration) (string, error) {
 	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"user_id":   "userId",
-		"server_id": serverId,
 		"version":   "1.0",
 		"exp":       time.Now().Add(time.Second * duration).Unix(),
 	})

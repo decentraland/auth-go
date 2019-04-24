@@ -24,13 +24,12 @@ type ThirdPartyStrategy struct {
 type AccessTokenPayload struct {
 	EphemeralKey string `json:"ephemeral_key"`
 	Expiration   int64  `json:"exp"`
-	ServerId     string `json:"server_id"`
 	UserId       string `json:"user_id"`
 	Version      string `json:"version"`
 }
 
 func (a AccessTokenPayload) isValid() bool {
-	return a.EphemeralKey != "" && a.Expiration > 0 && a.ServerId != "" && a.UserId != "" && a.Version != ""
+	return a.EphemeralKey != "" && a.Expiration > 0 && a.UserId != "" && a.Version != ""
 }
 
 func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
