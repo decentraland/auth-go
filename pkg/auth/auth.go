@@ -63,11 +63,11 @@ type AuthorizationError struct {
 	cause string
 }
 
-func (e *AuthenticationError) Error() string {
+func (e AuthenticationError) Error() string {
 	return e.cause
 }
 
-func (e *AuthorizationError) Error() string {
+func (e AuthorizationError) Error() string {
 	return e.cause
 }
 
