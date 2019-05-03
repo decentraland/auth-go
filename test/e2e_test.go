@@ -148,9 +148,6 @@ var tpTable = []thirdPartyTestCase{
 }
 
 func TestThirdPartyKeys(t *testing.T) {
-	if !runIntegrationTests {
-		t.Skip("Skipping integration test. To run it set RUN_IT=true")
-	}
 	for _, tc := range tpTable {
 		t.Run(tc.name, func(t *testing.T) {
 			serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -250,9 +247,6 @@ var noHttpRequestTable = []thirdPartyTestCase{
 }
 
 func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
-	if !runIntegrationTests {
-		t.Skip("Skipping integration test. To run it set RUN_IT=true")
-	}
 	for _, tc := range noHttpRequestTable {
 		t.Run(tc.name, func(t *testing.T) {
 			serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -322,9 +316,9 @@ func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, duration ti
 
 func missingDataToken(serverKey *ecdsa.PrivateKey, _ string, duration time.Duration) (string, error) {
 	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
-		"user_id":   "userId",
-		"version":   "1.0",
-		"exp":       time.Now().Add(time.Second * duration).Unix(),
+		"user_id": "userId",
+		"version": "1.0",
+		"exp":     time.Now().Add(time.Second * duration).Unix(),
 	})
 
 	return claims.SignedString(serverKey)
