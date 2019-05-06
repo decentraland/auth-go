@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"fmt"
@@ -48,14 +49,13 @@ func ReadRequestBody(r *http.Request) ([]byte, error) {
 	if r.Body == nil {
 		return nil, nil
 	}
-	b, err := r.GetBody()
-	if err != nil {
-		return nil, err
-	}
+	b := r.Body
+
 	content, err := ioutil.ReadAll(b)
 	if err != nil {
 		return nil, err
 	}
+	r.Body = ioutil.NopCloser(bytes.NewReader(content))
 	return content, nil
 }
 
