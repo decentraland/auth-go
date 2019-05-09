@@ -2,8 +2,11 @@ package auth
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"github.com/decentraland/auth-go/internal/utils"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 )
 
@@ -97,7 +100,7 @@ func (r *AuthRequest) Hash() ([]byte, error) {
 }
 
 // Generate a AuthRequest from a http.Request
-func MakeFromHttpRequest(r *http.Request) (*AuthRequest, error) {
+func MakeFromHttpRequest(r *http.Request, publicBaseUrl string) (*AuthRequest, error) {
 	credentials := make(map[string]string)
 	for key, value := range r.Header {
 		credentials[strings.ToLower(key)] = value[0]
@@ -112,8 +115,15 @@ func MakeFromHttpRequest(r *http.Request) (*AuthRequest, error) {
 		Credentials: credentials,
 		Content:     content,
 		Method:      r.Method,
-		URL:         r.URL.String(),
+		URL:         buildUrl(publicBaseUrl, r.URL.RequestURI()),
 	}, nil
+}
+
+func buildUrl(basePath string, relPath string, args ...interface{}) string {
+	u, _ := url.Parse(basePath)
+	u.Path = path.Join(u.Path, fmt.Sprintf(relPath, args...))
+	urlResult, _ := url.PathUnescape(u.String())
+	return urlResult
 }
 
 const (

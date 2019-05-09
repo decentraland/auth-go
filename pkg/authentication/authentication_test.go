@@ -176,7 +176,7 @@ func TestValidateCredentials(t *testing.T) {
 			if err != nil {
 				t.Fail()
 			}
-			r, err := auth.MakeFromHttpRequest(req)
+			r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org")
 			if err != nil {
 				t.Fail()
 			}

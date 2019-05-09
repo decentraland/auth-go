@@ -177,7 +177,7 @@ func TestThirdPartyKeys(t *testing.T) {
 				&authentication.ThirdPartyStrategy{RequestLifeSpan: tc.requestTTL, TrustedKey: key},
 				&authorization.AllowAllStrategy{})
 
-			r, err := auth.MakeFromHttpRequest(req)
+			r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org/")
 			if err != nil {
 				t.Fail()
 			}
@@ -345,7 +345,7 @@ func thirdPartyAssertError(message string) func(ok bool, err error, t *testing.T
 func checkRequest(t *testing.T, req *http.Request, authn auth.AuthenticationStrategy, authz auth.AuthorizationStrategy) {
 	authHandler := auth.NewAuthProvider(authn, authz)
 
-	r, err := auth.MakeFromHttpRequest(req)
+	r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org/")
 	if err != nil {
 		t.Fail()
 	}
