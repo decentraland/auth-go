@@ -10,8 +10,10 @@ Currently there are two types of credentials.
 This type of credential require the intervention of a third party (authentication server) in order to authenticate the user against a service provider
 
 ```go
- timeToLive := 10 // In seconds
- credential, _ := ephemeral.GenerateSimpleCredential(timeToLive)
+import "github.com/decentraland/auth-go/pkg/ephemeral"
+
+timeToLive := 10 // In seconds
+ephKey, _  := ephemeral.GenerateSimpleCredential(timeToLive)
 ```  
 
 #### Request credentials generation
@@ -19,19 +21,32 @@ This type of credential require the intervention of a third party (authenticatio
 ##### HTTP Requests
 
 ```go
+import (
+	"github.com/decentraland/auth-go/pkg/ephemeral"
+	"net/http"
+	"strings"
+)
+
 req, _ := http.NewRequest("POST", "https://yourserver.org/api/resource", strings.NewReader("{\"param\":\"data\"}"))
 accessToken := "..." // Access Token given by the third party. To generate one you will need to send the ecdsa public key generated as part of the credential generation process
-credential.AddRequestHeaders(req, accessToken)
+ephKey.AddRequestHeaders(req, accessToken)
 ```
 
 ##### Non HTTP Requests
 
 For WebRTC or non HTTP requests you should be able to obtain all the credentials for the message you want to send
 ```go
+import (
+	"github.com/decentraland/auth-go/pkg/commons"
+	"time"
+)
+
+now := time.Now().Unix()
+	
 msg := []byte("Your Message")
-msgHash, err := utils.GenerateMessageHash(msg, now)
+msgHash, err := commons.GenerateHttpRequestHash(msg, now)
 accessToken := "..." // Access Token given by the third party. To generate one you will need to send the ecdsa public key generated as part of the credential generation process
-credential.MakeCredentials(msgHash, accessToken, now)
+ephKey.MakeCredentials(msgHash, accessToken, now)
 ```
 
 ##### Generated Credentials
@@ -50,6 +65,11 @@ credential.MakeCredentials(msgHash, accessToken, now)
 A user with an Ethereum account can generate a set of keys linked to the original account.
 
 ```go
+import (
+	"github.com/decentraland/auth-go/internal/ethereum"
+	"github.com/decentraland/auth-go/pkg/ephemeral"
+)
+
 nodeAddress := "http://127.0.0.1:8545"
 accountPass := ""
 
@@ -69,14 +89,25 @@ Once you have your credentials you should be able to add the required headers to
 
 ##### HTTP Requests
 ```go
+import (
+	"net/http"
+	"strings"
+)
+
 req, _ := http.NewRequest("POST", "https://yourserver.org/api/resource", strings.NewReader("{\"param\":\"data\"}"))
-credential.AddRequestHeaders(req)
+ephKey.AddRequestHeaders(req)
 ```
 
 ##### Non HTTP Requests
 ```go
+import (
+	"github.com/decentraland/auth-go/pkg/commons"
+	"time"
+)
+
 msg := []byte("Your Message")
-msgHash, err := utils.GenerateMessageHash(msg, now)
+now := time.Now().Unix()
+msgHash, err := commons.GenerateHttpRequestHash(msg, now)
 credential.MakeCredentials(msgHash, now)
 ```
 
@@ -105,6 +136,13 @@ The service provider will need to know the entity who signs the access token, ot
 
 ##### HTTP Requests
 ```go
+import (
+	"github.com/decentraland/auth-go/pkg/auth"
+	"github.com/decentraland/auth-go/pkg/authentication"
+	"github.com/decentraland/auth-go/pkg/authorization"
+	"github.com/decentraland/auth-go/pkg/keys"
+)
+
 reqTTL := 30 // Request time to live in seconds
 trustedKey := keys.PemDecodePublicKey(pemEncodedPublicKeyString)
 authnStrategy := &authentication.ThirdPartyStrategy{RequestLifeSpan: reqTTL, TrustedKey: trustedKey)}
@@ -117,24 +155,70 @@ ok, err := authHandler.ApproveRequest(req)
 
 ##### Non HTTP Requests
 ```go
-req, _ := auth.AuthRequest{Credentials: msgCredentials, Content: msg}
+import (
+	"github.com/decentraland/auth-go/pkg/auth"
+	"github.com/decentraland/auth-go/pkg/authentication"
+	"github.com/decentraland/auth-go/pkg/authorization"
+	"github.com/decentraland/auth-go/pkg/keys"
+)
+
+reqTTL := 30 // Request time to live in seconds
+trustedKey := keys.PemDecodePublicKey(pemEncodedPublicKeyString)
+authnStrategy := &authentication.ThirdPartyStrategy{RequestLifeSpan: reqTTL, TrustedKey: trustedKey)}
+authzStrategy := &authorization.AllowAllStrategy{}
+authHandler := auth.NewAuthProvider(authnStrategy, authzStrategy)
+
+msgCredentials := make(map[string]string)
+
+msgCredentials[auth.HeaderAccessToken] = ""
+//...
+msgCredentials[auth.HeaderTimestamp] = "150000000"
+
+msg := []byte("Your Message To Validate")
+req := &auth.AuthRequest{Credentials: msgCredentials, Content: msg}
 ok, err := authHandler.ApproveRequest(req)
 ```
 
 #### Self Granted strategy
 
 ```go
+import (
+	"github.com/decentraland/auth-go/pkg/auth"
+	"github.com/decentraland/auth-go/pkg/authentication"
+	"github.com/decentraland/auth-go/pkg/authorization"
+	"net/http"
+)
+
 reqTTL := 30 // Request time to live in seconds
 authnStrategy := &authentication.SelfGrantedStrategy{RequestLifeSpan: reqTTL}
 authzStrategy := &authorization.AllowAllStrategy{}
 authHandler := auth.NewAuthProvider(authnStrategy, authzStrategy)
 
-req, _ := auth.MakeFromHttpRequest(httpRequest)
+var httpRequest http.Response
+// httpRequest = ...
+serverPublicUrl := 'https://your.service.com'
+req, _ := auth.MakeFromHttpRequest(httpRequest, serverPublicUrl)
 ok, err := authHandler.ApproveRequest(req)
 ```
 
 ##### Non HTTP Requests
 ```go
+import (
+	"github.com/decentraland/auth-go/pkg/auth"
+	"github.com/decentraland/auth-go/pkg/authentication"
+	"github.com/decentraland/auth-go/pkg/authorization"
+	"github.com/decentraland/auth-go/pkg/keys"
+)
+
+
+msgCredentials := make(map[string]string)
+
+msgCredentials[auth.HeaderAccessToken] = ""
+//...
+msgCredentials[auth.HeaderTimestamp] = "150000000"
+
+msg := []byte("Your Message To Validate")
+
 req, _ := auth.AuthRequest{Credentials: msgCredentials, Content: msg}
 ok, err := authHandler.ApproveRequest(req)
 ```
@@ -142,9 +226,19 @@ ok, err := authHandler.ApproveRequest(req)
 #### Allow All
 
 ```go
+import (
+	"github.com/decentraland/auth-go/pkg/auth"
+	"github.com/decentraland/auth-go/pkg/authentication"
+	"github.com/decentraland/auth-go/pkg/authorization"
+	"net/http"
+)
+
 authnStrategy :=  &authentication.AllowAllStrategy{}
 authzStrategy := &authorization.AllowAllStrategy{}
 authHandler := auth.NewAuthProvider(authnStrategy, authzStrategy)
+
+var httpRequest http.Response
+// httpRequest = ...
 
 req, _ := http.TransformHttpRequest(httpRequest)
 ok, err := authHandler.ApproveRequest(req)
