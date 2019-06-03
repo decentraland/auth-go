@@ -5,10 +5,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"github.com/decentraland/auth-go/internal/ethereum"
-	"github.com/decentraland/auth-go/internal/utils"
 	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/decentraland/auth-go/pkg/authentication"
 	"github.com/decentraland/auth-go/pkg/authorization"
+	"github.com/decentraland/auth-go/pkg/commons"
 	"github.com/decentraland/auth-go/pkg/ephemeral"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -267,7 +267,7 @@ func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
 
 			now := time.Now().Unix()
 
-			msgHash, err := utils.GenerateMessageHash(msg, now)
+			msgHash, err := commons.GenerateMessageHash(msg, now)
 			if err != nil {
 				t.Error(err.Error())
 			}

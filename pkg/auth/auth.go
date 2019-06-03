@@ -3,7 +3,7 @@ package auth
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/decentraland/auth-go/internal/utils"
+	"github.com/decentraland/auth-go/pkg/commons"
 	"net/http"
 	"net/url"
 	"path"
@@ -106,7 +106,7 @@ func MakeFromHttpRequest(r *http.Request, publicBaseUrl string) (*AuthRequest, e
 		credentials[strings.ToLower(key)] = value[0]
 	}
 
-	content, err := utils.ReadRequestBody(r)
+	content, err := commons.ReadRequestBody(r)
 	if err != nil {
 		return nil, err
 	}

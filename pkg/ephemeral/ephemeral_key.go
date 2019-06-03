@@ -3,7 +3,7 @@ package ephemeral
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/decentraland/auth-go/internal/utils"
+	"github.com/decentraland/auth-go/pkg/commons"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"net/http"
@@ -109,7 +109,7 @@ func getNetworkNameByID(id string) string {
 func (c *EthBasedCredential) AddRequestHeaders(r *http.Request) error {
 	timestamp := time.Now().Unix()
 
-	msg, err := utils.GenerateHttpRequestHash(r, timestamp)
+	msg, err := commons.GenerateHttpRequestHash(r, timestamp)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (c *EthBasedCredential) AddRequestHeaders(r *http.Request) error {
 
 // Generates all the needed credentials to authenticate the credential owner
 func (c *EthBasedCredential) MakeCredentials(msg []byte, timestamp int64) (map[string]string, error) {
-	signature, err := utils.SignMessage(msg, c.EphemeralPrivateKey)
+	signature, err := commons.SignMessage(msg, c.EphemeralPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func GenerateSimpleCredential(keysTTL int) (*SimpleCredential, error) {
 func (c *SimpleCredential) AddRequestHeaders(r *http.Request, accessToken string) error {
 	timestamp := time.Now().Unix()
 
-	msg, err := utils.GenerateHttpRequestHash(r, timestamp)
+	msg, err := commons.GenerateHttpRequestHash(r, timestamp)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (c *SimpleCredential) AddRequestHeaders(r *http.Request, accessToken string
 
 // Generates all the needed credentials to authenticate the credential owner
 func (c *SimpleCredential) MakeCredentials(message []byte, accessToken string, timestamp int64) (map[string]string, error) {
-	signature, err := utils.SignMessage(message, c.EphemeralPrivateKey)
+	signature, err := commons.SignMessage(message, c.EphemeralPrivateKey)
 	if err != nil {
 		return nil, err
 	}
