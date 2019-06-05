@@ -5,15 +5,14 @@ Provides Request authentication for Decentraland services
 
 Currently there are two types of credentials.  
 
-### Third Party credentials
+### Third Party Key generation
 
 This type of credential require the intervention of a third party (authentication server) in order to authenticate the user against a service provider
 
 ```go
 import "github.com/decentraland/auth-go/pkg/ephemeral"
 
-timeToLive := 10 // In seconds
-ephKey, _  := ephemeral.GenerateSimpleCredential(timeToLive)
+ephKey, _  := ephemeral.GenerateSimpleCredential()
 ```  
 
 #### Request credentials generation
@@ -36,17 +35,15 @@ ephKey.AddRequestHeaders(req, accessToken)
 
 For WebRTC or non HTTP requests you should be able to obtain all the credentials for the message you want to send
 ```go
-import (
-	"github.com/decentraland/auth-go/pkg/commons"
-	"time"
-)
+import "github.com/decentraland/auth-go/pkg/ephemeral"
 
-now := time.Now().Unix()
-	
+ephKey, _  := ephemeral.GenerateSimpleCredential()
+
 msg := []byte("Your Message")
-msgHash, err := commons.GenerateHttpRequestHash(msg, now)
+
 accessToken := "..." // Access Token given by the third party. To generate one you will need to send the ecdsa public key generated as part of the credential generation process
-ephKey.MakeCredentials(msgHash, accessToken, now)
+
+ephKey.MakeCredentials(msg, accessToken)
 ```
 
 ##### Generated Credentials
@@ -60,7 +57,7 @@ ephKey.MakeCredentials(msgHash, accessToken, now)
 | x-access-token  | Access token. Contains the public ephemeral key and it  is signed by the granting authority with its own private key. | 
 
 
-### Self granted credentials
+### Self granted keys
 
 A user with an Ethereum account can generate a set of keys linked to the original account.
 
@@ -80,7 +77,7 @@ accInfo := &ephemeral.EthAccountInfo{Account: acc, Passphrase: accountPass}
 
 timeToLive := 10 // In seconds
 
-credential, _ := ephemeral.GenerateEthBasedCredential(accInfo, c, timeToLive)
+ephKey, _ := ephemeral.GenerateEthBasedCredential(accInfo, c, timeToLive)
 ```  
 
 #### Request credentials generation
@@ -100,15 +97,11 @@ ephKey.AddRequestHeaders(req)
 
 ##### Non HTTP Requests
 ```go
-import (
-	"github.com/decentraland/auth-go/pkg/commons"
-	"time"
-)
+import "github.com/decentraland/auth-go/pkg/ephemeral"
 
+ephKey, _ := ephemeral.GenerateEthBasedCredential(accInfo, c, timeToLive)
 msg := []byte("Your Message")
-now := time.Now().Unix()
-msgHash, err := commons.GenerateHttpRequestHash(msg, now)
-credential.MakeCredentials(msgHash, now)
+ephKey.MakeCredentials(msg, now)
 ```
 
 ##### Generated credentials
@@ -145,9 +138,7 @@ import (
 
 reqTTL := 30 // Request time to live in seconds
 trustedKey := keys.PemDecodePublicKey(pemEncodedPublicKeyString)
-authnStrategy := &authentication.ThirdPartyStrategy{RequestLifeSpan: reqTTL, TrustedKey: trustedKey)}
-authzStrategy := &authorization.AllowAllStrategy{}
-authHandler := auth.NewAuthProvider(authnStrategy, authzStrategy)
+authHandler, err := auth.NewThirdPartyAuthProvider(&auth.ThirdPartyProviderConfig{RequestLifeSpan: reqTTL, TrustedKey: trustedKey})
 
 req, _ := auth.MakeFromHttpRequest(httpRequest)
 ok, err := authHandler.ApproveRequest(req)
@@ -157,16 +148,13 @@ ok, err := authHandler.ApproveRequest(req)
 ```go
 import (
 	"github.com/decentraland/auth-go/pkg/auth"
-	"github.com/decentraland/auth-go/pkg/authentication"
-	"github.com/decentraland/auth-go/pkg/authorization"
 	"github.com/decentraland/auth-go/pkg/keys"
 )
 
 reqTTL := 30 // Request time to live in seconds
 trustedKey := keys.PemDecodePublicKey(pemEncodedPublicKeyString)
-authnStrategy := &authentication.ThirdPartyStrategy{RequestLifeSpan: reqTTL, TrustedKey: trustedKey)}
-authzStrategy := &authorization.AllowAllStrategy{}
-authHandler := auth.NewAuthProvider(authnStrategy, authzStrategy)
+authHandler, err := auth.NewThirdPartyAuthProvider(&auth.ThirdPartyProviderConfig{RequestLifeSpan: reqTTL, TrustedKey: trustedKey})
+
 
 msgCredentials := make(map[string]string)
 

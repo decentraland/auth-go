@@ -1,12 +1,11 @@
 package auth
 
 import (
+	"crypto/ecdsa"
 	"crypto/sha256"
-	"fmt"
+	"errors"
 	"github.com/decentraland/auth-go/pkg/commons"
 	"net/http"
-	"net/url"
-	"path"
 	"strings"
 )
 
@@ -34,11 +33,42 @@ type authProviderImpl struct {
 	authz AuthorizationStrategy
 }
 
-func NewAuthProvider(authn AuthenticationStrategy, authz AuthorizationStrategy) AuthProvider {
+type ProviderConfig struct {
+	Authn AuthenticationStrategy
+	Authz AuthorizationStrategy
+}
+
+func NewAuthProvider(authn AuthenticationStrategy, authz AuthorizationStrategy) (AuthProvider, error) {
+	if authn == nil && authz == nil {
+		return nil, errors.New("missing required strategy")
+	}
 	return &authProviderImpl{
 		authn: authn,
 		authz: authz,
+	}, nil
+}
+
+type ThirdPartyProviderConfig struct {
+	Authn           AuthenticationStrategy
+	Authz           AuthorizationStrategy
+	RequestLifeSpan int64
+	TrustedKey      *ecdsa.PublicKey
+}
+
+func NewThirdPartyAuthProvider(config *ThirdPartyProviderConfig) (AuthProvider, error) {
+	authn := config.Authn
+	if authn == nil {
+		if config.TrustedKey == nil {
+			return nil, errors.New("missing required trusted key")
+		}
+		authn = &ThirdPartyStrategy{RequestLifeSpan: config.RequestLifeSpan, TrustedKey: config.TrustedKey}
 	}
+
+	authz := config.Authz
+	if authz == nil {
+		authz = &AllowAllAuthzStrategy{}
+	}
+	return NewAuthProvider(authn, authz)
 }
 
 // Authenticate and Authorize request based on the AuthorizationStrategy
@@ -117,13 +147,6 @@ func MakeFromHttpRequest(r *http.Request, publicBaseUrl string) (*AuthRequest, e
 		Method:      r.Method,
 		URL:         buildUrl(publicBaseUrl, r.URL.RequestURI()),
 	}, nil
-}
-
-func buildUrl(basePath string, relPath string, args ...interface{}) string {
-	u, _ := url.Parse(basePath)
-	u.Path = path.Join(u.Path, fmt.Sprintf(relPath, args...))
-	urlResult, _ := url.PathUnescape(u.String())
-	return urlResult
 }
 
 const (

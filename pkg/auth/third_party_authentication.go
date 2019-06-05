@@ -1,4 +1,4 @@
-package authentication
+package auth
 
 import (
 	"crypto/ecdsa"
@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/decentraland/auth-go/internal/utils"
-	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/dgrijalva/jwt-go"
 	"math/big"
 	"strings"
@@ -32,10 +31,10 @@ func (a AccessTokenPayload) isValid() bool {
 	return a.EphemeralKey != "" && a.Expiration > 0 && a.UserId != "" && a.Version != ""
 }
 
-func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
+func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (bool, error) {
 	cred := r.Credentials
 
-	requiredCredentials := []string{auth.HeaderIdentity, auth.HeaderTimestamp, auth.HeaderAccessToken, "x-signature", auth.HeaderAuthType}
+	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderAccessToken, HeaderSignature, HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return false, err
 	}
@@ -44,7 +43,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(cred[auth.HeaderIdentity], thirdPartyUserIdPattern)
+	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], thirdPartyUserIdPattern)
 	if err != nil {
 		return false, err
 	}
@@ -63,7 +62,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	if err = validateAccessToken(cred[auth.HeaderAccessToken], s.TrustedKey, ephPbKey); err != nil {
+	if err = validateAccessToken(cred[HeaderAccessToken], s.TrustedKey, ephPbKey); err != nil {
 		return false, err
 	}
 

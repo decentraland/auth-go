@@ -1,12 +1,11 @@
-package authorization
+package auth
 
 import (
 	"fmt"
 	"github.com/decentraland/auth-go/internal/utils"
-	"github.com/decentraland/auth-go/pkg/auth"
 )
 
-const identityPattern = "decentraland:(.*)\\/temp\\/(.*)"
+const authzIdentityPattern = "decentraland:(.*)\\/temp\\/(.*)"
 
 type InviteStrategy struct {
 	dcl decentraland
@@ -17,13 +16,13 @@ func NewInviteStrategy(dclApi string) *InviteStrategy {
 	return &InviteStrategy{dcl: d}
 }
 
-func (di *InviteStrategy) Authorize(r *auth.AuthRequest) (bool, error) {
-	requiredCredentials := []string{auth.HeaderIdentity}
+func (di *InviteStrategy) Authorize(r *AuthRequest) (bool, error) {
+	requiredCredentials := []string{HeaderIdentity}
 	if err := utils.ValidateRequiredCredentials(r.Credentials, requiredCredentials); err != nil {
 		return false, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(r.Credentials[auth.HeaderIdentity], identityPattern)
+	tokens, err := utils.ParseTokensWithRegex(r.Credentials[HeaderIdentity], authzIdentityPattern)
 	if err != nil {
 		return false, err
 	}
@@ -43,8 +42,8 @@ func (di *InviteStrategy) Authorize(r *auth.AuthRequest) (bool, error) {
 }
 
 // Authorize all requests
-type AllowAllStrategy struct{}
+type AllowAllAuthzStrategy struct{}
 
-func (di *AllowAllStrategy) Authorize(r *auth.AuthRequest) (bool, error) {
+func (di *AllowAllAuthzStrategy) Authorize(r *AuthRequest) (bool, error) {
 	return true, nil
 }

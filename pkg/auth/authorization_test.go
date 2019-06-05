@@ -1,7 +1,6 @@
-package authorization
+package auth
 
 import (
-	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strings"
@@ -35,12 +34,12 @@ func assertFalseResult(t *testing.T, result bool, err error) {
 var authorizeRequestTc = []authorizeRequestData{
 	{
 		name:            "Authorized AuthRequest",
-		requestHeaders:  map[string]string{auth.HeaderIdentity: validIdentity},
+		requestHeaders:  map[string]string{HeaderIdentity: validIdentity},
 		resultAssertion: assertTrueResult,
 	},
 	{
 		name:            "Uninvited Address",
-		requestHeaders:  map[string]string{auth.HeaderIdentity: notInvitedIdentity},
+		requestHeaders:  map[string]string{HeaderIdentity: notInvitedIdentity},
 		resultAssertion: assertFalseResult,
 	},
 	{
@@ -50,7 +49,7 @@ var authorizeRequestTc = []authorizeRequestData{
 	},
 	{
 		name:            "Invalid header",
-		requestHeaders:  map[string]string{auth.HeaderIdentity: "not an identity"},
+		requestHeaders:  map[string]string{HeaderIdentity: "not an identity"},
 		resultAssertion: assertError,
 	},
 }
@@ -64,7 +63,7 @@ func TestAuthorizeRequest(t *testing.T) {
 			if err != nil {
 				t.Fail()
 			}
-			r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org")
+			r, err := MakeFromHttpRequest(req, "http://market.decentraland.org")
 			if err != nil {
 				t.Fail()
 			}

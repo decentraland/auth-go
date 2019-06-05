@@ -1,4 +1,4 @@
-package authentication
+package auth
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/decentraland/auth-go/internal/utils"
-	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
@@ -17,12 +16,12 @@ import (
 )
 
 const certificatePattern = ".*Date: (.*) Expires: (.*)"
-const identityPattern = "decentraland:(.*)\\/temp\\/(.*)"
+const identityEthBasedPattern = "decentraland:(.*)\\/temp\\/(.*)"
 
 // Authenticate all requests
-type AllowAllStrategy struct{}
+type AllowAllAuthnStrategy struct{}
 
-func (s *AllowAllStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
+func (s *AllowAllAuthnStrategy) Authenticate(r *AuthRequest) (bool, error) {
 	return true, nil
 }
 
@@ -31,9 +30,9 @@ type SelfGrantedStrategy struct {
 }
 
 // Validates the request credentials generated with the EphemeralKeys protocol
-func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
+func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (bool, error) {
 	cred := r.Credentials
-	requiredCredentials := []string{auth.HeaderIdentity, auth.HeaderTimestamp, auth.HeaderCert, auth.HeaderCertSignature, auth.HeaderSignature, auth.HeaderAuthType}
+	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderCert, HeaderCertSignature, HeaderSignature, HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return false, err
 	}
@@ -42,7 +41,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(cred[auth.HeaderIdentity], identityPattern)
+	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], identityEthBasedPattern)
 	if err != nil {
 		return false, err
 	}
@@ -62,7 +61,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *auth.AuthRequest) (bool, error) {
 		return false, err
 	}
 
-	if err = validateCertificate(cred[auth.HeaderCert], cred["x-certificate-signature"], certAddress); err != nil {
+	if err = validateCertificate(cred[HeaderCert], cred["x-certificate-signature"], certAddress); err != nil {
 		return false, err
 	}
 
@@ -83,7 +82,7 @@ func checkRequestExpiration(timestamp string, ttl int64) error {
 }
 
 // Validates that the signature sent in the request was generated for the current request
-func validateRequestSignature(r *auth.AuthRequest, pubKey string) error {
+func validateRequestSignature(r *AuthRequest, pubKey string) error {
 	cred := r.Credentials
 	msg, err := r.Hash()
 	if err != nil {

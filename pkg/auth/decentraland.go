@@ -1,11 +1,8 @@
-package authorization
+package auth
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"net/url"
-	"path"
 )
 
 type decentraland interface {
@@ -37,13 +34,6 @@ func (dcl *dclClient) checkInvite(address string) (bool, error) {
 		return false, err
 	}
 	return resp.Data.Invited, nil
-}
-
-func buildUrl(basePath string, relPath string, args ...interface{}) string {
-	u, _ := url.Parse(basePath)
-	u.Path = path.Join(u.Path, fmt.Sprintf(relPath, args...))
-	url, _ := url.PathUnescape(u.String())
-	return url
 }
 
 func doGet(url string, response interface{}) error {

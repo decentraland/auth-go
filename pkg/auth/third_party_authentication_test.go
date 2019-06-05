@@ -1,4 +1,4 @@
-package authentication
+package auth
 
 import (
 	"github.com/decentraland/auth-go/pkg/keys"

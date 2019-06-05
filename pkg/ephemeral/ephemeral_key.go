@@ -14,8 +14,8 @@ import (
 	"github.com/decentraland/auth-go/internal/ethereum"
 )
 
-// EthBasedCredential Uses the blockchain information to generate the key certificate
-type EthBasedCredential struct {
+// EthEphemeralKey Uses the blockchain information to generate the key certificate
+type EthEphemeralKey struct {
 	EphemeralPrivateKey *ecdsa.PrivateKey
 	Address             string
 	Signature           string
@@ -32,7 +32,7 @@ type EthAccountInfo struct {
 
 // GenerateCredential generates an ephemeral key using the account in the configured node
 // The 'personal' rpc module need to me enable on the external node
-func GenerateEthBasedCredential(account *EthAccountInfo, ethClient ethereum.EthClient, keysTimeToLive int) (*EthBasedCredential, error) {
+func GenerateEthEphemeralKey(account *EthAccountInfo, ethClient ethereum.EthClient, keysTimeToLive int) (*EthEphemeralKey, error) {
 	pvKey, err := crypto.GenerateKey()
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func GenerateEthBasedCredential(account *EthAccountInfo, ethClient ethereum.EthC
 		return nil, err
 	}
 
-	return &EthBasedCredential{
+	return &EthEphemeralKey{
 		EphemeralPrivateKey: pvKey,
 		ExpirationTime:      expTime,
 		Address:             account.Account,
@@ -106,7 +106,7 @@ func getNetworkNameByID(id string) string {
 }
 
 // Adds all  needed credentials to authenticate the credential owner as request headers
-func (c *EthBasedCredential) AddRequestHeaders(r *http.Request) error {
+func (c *EthEphemeralKey) AddRequestHeaders(r *http.Request) error {
 	timestamp := time.Now().Unix()
 
 	msg, err := commons.GenerateHttpRequestHash(r, timestamp)
@@ -115,14 +115,24 @@ func (c *EthBasedCredential) AddRequestHeaders(r *http.Request) error {
 	}
 
 	fieldExtractor := func() (map[string]string, error) {
-		return c.MakeCredentials(msg, timestamp)
+		return c.generateCredentials(msg, timestamp)
 	}
 
 	return completeRequest(r, fieldExtractor)
 }
 
 // Generates all the needed credentials to authenticate the credential owner
-func (c *EthBasedCredential) MakeCredentials(msg []byte, timestamp int64) (map[string]string, error) {
+func (c *EthEphemeralKey) MakeCredentials(msg []byte) (map[string]string, error) {
+	timestamp := time.Now().Unix()
+
+	msgHash, err := commons.GenerateMessageHash(msg, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	return c.generateCredentials(msgHash, timestamp)
+}
+
+func (c *EthEphemeralKey) generateCredentials(msg []byte, timestamp int64) (map[string]string, error) {
 	signature, err := commons.SignMessage(msg, c.EphemeralPrivateKey)
 	if err != nil {
 		return nil, err
@@ -140,26 +150,35 @@ func (c *EthBasedCredential) MakeCredentials(msg []byte, timestamp int64) (map[s
 	return fields, nil
 }
 
-type SimpleCredential struct {
-	EphemeralPrivateKey *ecdsa.PrivateKey
-	ExpirationTime      time.Time
+type EphemeralKey struct {
+	PrivateKey *ecdsa.PrivateKey
 }
 
-// Generate a SimpleCredential which is basically a ecdsa key with an expiration time.
-func GenerateSimpleCredential(keysTTL int) (*SimpleCredential, error) {
-	pvKey, err := crypto.GenerateKey()
-	if err != nil {
-		return nil, err
-	}
-	ttl := time.Minute * time.Duration(keysTTL)
-	date := time.Now().UTC()
-	expTime := getExpirationTime(ttl, date)
+type EphemeralKeyConfig struct {
+	PrivateKey *ecdsa.PrivateKey
+}
 
-	return &SimpleCredential{EphemeralPrivateKey: pvKey, ExpirationTime: expTime}, nil
+// Generate a EphemeralKey which is basically a ecdsa key
+func NewEphemeralKey(config *EphemeralKeyConfig) (*EphemeralKey, error) {
+	eph := &EphemeralKey{PrivateKey: config.PrivateKey}
+
+	if eph.PrivateKey == nil {
+		pvKey, err := crypto.GenerateKey()
+		eph.PrivateKey = pvKey
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return eph, nil
+}
+
+func (c *EphemeralKey) PublicKey() *ecdsa.PublicKey {
+	return &c.PrivateKey.PublicKey
 }
 
 // Adds all  needed credentials to authenticate the credential owner as request headers
-func (c *SimpleCredential) AddRequestHeaders(r *http.Request, accessToken string) error {
+func (c *EphemeralKey) AddRequestHeaders(r *http.Request, accessToken string) error {
 	timestamp := time.Now().Unix()
 
 	msg, err := commons.GenerateHttpRequestHash(r, timestamp)
@@ -168,15 +187,25 @@ func (c *SimpleCredential) AddRequestHeaders(r *http.Request, accessToken string
 	}
 
 	fieldExtractor := func() (strings map[string]string, e error) {
-		return c.MakeCredentials(msg, accessToken, timestamp)
+		return c.generateCredentials(msg, accessToken, timestamp)
 	}
 
 	return completeRequest(r, fieldExtractor)
 }
 
 // Generates all the needed credentials to authenticate the credential owner
-func (c *SimpleCredential) MakeCredentials(message []byte, accessToken string, timestamp int64) (map[string]string, error) {
-	signature, err := commons.SignMessage(message, c.EphemeralPrivateKey)
+func (c *EphemeralKey) MakeCredentials(message []byte, accessToken string) (map[string]string, error) {
+	timestamp := time.Now().Unix()
+
+	msgHash, err := commons.GenerateMessageHash(message, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	return c.generateCredentials(msgHash, accessToken, timestamp)
+}
+
+func (c *EphemeralKey) generateCredentials(message []byte, accessToken string, timestamp int64) (map[string]string, error) {
+	signature, err := commons.SignMessage(message, c.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +213,7 @@ func (c *SimpleCredential) MakeCredentials(message []byte, accessToken string, t
 	fields := map[string]string{}
 
 	fields["x-signature"] = hex.EncodeToString(signature)
-	fields["x-identity"] = fmt.Sprintf("public key derived address: %s", hexutil.Encode(crypto.CompressPubkey(&c.EphemeralPrivateKey.PublicKey)))
+	fields["x-identity"] = fmt.Sprintf("public key derived address: %s", hexutil.Encode(crypto.CompressPubkey(&c.PrivateKey.PublicKey)))
 	fields["x-timestamp"] = strconv.FormatInt(timestamp, 10)
 	fields["x-auth-type"] = "third-party"
 	fields["x-access-token"] = accessToken

@@ -6,9 +6,6 @@ import (
 	"crypto/rand"
 	"github.com/decentraland/auth-go/internal/ethereum"
 	"github.com/decentraland/auth-go/pkg/auth"
-	"github.com/decentraland/auth-go/pkg/authentication"
-	"github.com/decentraland/auth-go/pkg/authorization"
-	"github.com/decentraland/auth-go/pkg/commons"
 	"github.com/decentraland/auth-go/pkg/ephemeral"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -44,28 +41,28 @@ func TestEphemeralKeys(t *testing.T) {
 	}
 
 	accInfo := &ephemeral.EthAccountInfo{TokenAddress: "0x12345", Account: acc, Passphrase: pass}
-	credential, err := ephemeral.GenerateEthBasedCredential(accInfo, c, 10)
+	ephemeralKey, err := ephemeral.GenerateEthEphemeralKey(accInfo, c, 10)
 
 	assert.Nil(t, err)
-	assert.NotNil(t, credential)
+	assert.NotNil(t, ephemeralKey)
 
 	req := buildPostRequest()
 
-	if err := credential.AddRequestHeaders(req); err != nil {
+	if err := ephemeralKey.AddRequestHeaders(req); err != nil {
 		t.Error(err.Error())
 	}
 
 	dclApi := os.Getenv("DCL_API")
 
-	checkRequest(t, req, &authentication.SelfGrantedStrategy{RequestLifeSpan: 10}, authorization.NewInviteStrategy(dclApi))
+	checkRequest(t, req, &auth.SelfGrantedStrategy{RequestLifeSpan: 10}, auth.NewInviteStrategy(dclApi))
 
 	get := buildGetRequest()
 
-	if err := credential.AddRequestHeaders(get); err != nil {
+	if err := ephemeralKey.AddRequestHeaders(get); err != nil {
 		t.Error(err.Error())
 	}
 
-	checkRequest(t, get, &authentication.SelfGrantedStrategy{RequestLifeSpan: 10}, authorization.NewInviteStrategy(dclApi))
+	checkRequest(t, get, &auth.SelfGrantedStrategy{RequestLifeSpan: 10}, auth.NewInviteStrategy(dclApi))
 }
 
 type thirdPartyTestCase struct {
@@ -83,7 +80,6 @@ type thirdPartyTestCase struct {
 var tpTable = []thirdPartyTestCase{
 	{
 		name:            "Valid Credentials - POST",
-		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
@@ -92,7 +88,6 @@ var tpTable = []thirdPartyTestCase{
 	},
 	{
 		name:            "Valid Credentials - GET",
-		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
@@ -100,7 +95,6 @@ var tpTable = []thirdPartyTestCase{
 		resultAssertion: thirdPartyAssertOk,
 	}, {
 		name:           "Invalid Format Access Token",
-		credentialTTL:  10,
 		accessTokenTTL: 60,
 		requestTTL:     1000,
 		tokenGen: func(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (s string, e error) {
@@ -110,7 +104,6 @@ var tpTable = []thirdPartyTestCase{
 		resultAssertion: thirdPartyAssertError("decoding Access Token error"),
 	}, {
 		name:            "Invalid Data Access Token",
-		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        missingDataToken,
@@ -118,7 +111,6 @@ var tpTable = []thirdPartyTestCase{
 		resultAssertion: thirdPartyAssertError("invalid Access Token payload"),
 	}, {
 		name:              "Invalid Entity public Key",
-		credentialTTL:     10,
 		accessTokenTTL:    60,
 		requestTTL:        1000,
 		tokenGen:          generateAccessToken,
@@ -127,7 +119,6 @@ var tpTable = []thirdPartyTestCase{
 		resultAssertion:   thirdPartyAssertError("error validating Access Token"),
 	}, {
 		name:            "Expired Request",
-		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1,
 		tokenGen:        generateAccessToken,
@@ -137,7 +128,6 @@ var tpTable = []thirdPartyTestCase{
 	},
 	{
 		name:            "Expired Access Token",
-		credentialTTL:   10,
 		accessTokenTTL:  1,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
@@ -154,17 +144,17 @@ func TestThirdPartyKeys(t *testing.T) {
 			if err != nil {
 				t.Error(err.Error())
 			}
-			credential, err := ephemeral.GenerateSimpleCredential(tc.credentialTTL)
+			ephemeralKey, err := ephemeral.NewEphemeralKey(&ephemeral.EphemeralKeyConfig{})
 			if err != nil {
 				t.Error(err.Error())
 			}
 
-			accessToken, err := tc.tokenGen(serverKey, getAddressFromKey(&credential.EphemeralPrivateKey.PublicKey), tc.accessTokenTTL)
+			accessToken, err := tc.tokenGen(serverKey, getAddressFromKey(ephemeralKey.PublicKey()), tc.accessTokenTTL)
 			if err != nil {
 				t.Error(err.Error())
 			}
 			req := tc.request
-			if err := credential.AddRequestHeaders(req, accessToken); err != nil {
+			if err := ephemeralKey.AddRequestHeaders(req, accessToken); err != nil {
 				t.Error(err.Error())
 			}
 
@@ -173,9 +163,10 @@ func TestThirdPartyKeys(t *testing.T) {
 				key = tc.alternativePubKey
 			}
 
-			authHandler := auth.NewAuthProvider(
-				&authentication.ThirdPartyStrategy{RequestLifeSpan: tc.requestTTL, TrustedKey: key},
-				&authorization.AllowAllStrategy{})
+			authHandler, err := auth.NewThirdPartyAuthProvider(&auth.ThirdPartyProviderConfig{RequestLifeSpan: tc.requestTTL, TrustedKey: key})
+			if err != nil {
+				t.Fail()
+			}
 
 			r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org/")
 			if err != nil {
@@ -197,14 +188,12 @@ func TestThirdPartyKeys(t *testing.T) {
 var noHttpRequestTable = []thirdPartyTestCase{
 	{
 		name:            "Valid Credentials",
-		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
 		resultAssertion: thirdPartyAssertOk,
 	}, {
 		name:           "Invalid Format Access Token",
-		credentialTTL:  10,
 		accessTokenTTL: 60,
 		requestTTL:     1000,
 		tokenGen: func(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (s string, e error) {
@@ -213,14 +202,12 @@ var noHttpRequestTable = []thirdPartyTestCase{
 		resultAssertion: thirdPartyAssertError("decoding Access Token error"),
 	}, {
 		name:            "Invalid Data Access Token",
-		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        missingDataToken,
 		resultAssertion: thirdPartyAssertError("invalid Access Token payload"),
 	}, {
 		name:              "Invalid Entity public Key",
-		credentialTTL:     10,
 		accessTokenTTL:    60,
 		requestTTL:        1000,
 		tokenGen:          generateAccessToken,
@@ -228,7 +215,6 @@ var noHttpRequestTable = []thirdPartyTestCase{
 		resultAssertion:   thirdPartyAssertError("error validating Access Token"),
 	}, {
 		name:            "Expired Request",
-		credentialTTL:   10,
 		accessTokenTTL:  60,
 		requestTTL:      1,
 		tokenGen:        generateAccessToken,
@@ -237,7 +223,6 @@ var noHttpRequestTable = []thirdPartyTestCase{
 	},
 	{
 		name:            "Expired Access Token",
-		credentialTTL:   10,
 		accessTokenTTL:  1,
 		requestTTL:      1000,
 		tokenGen:        generateAccessToken,
@@ -253,26 +238,19 @@ func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
 			if err != nil {
 				t.Error(err.Error())
 			}
-			credential, err := ephemeral.GenerateSimpleCredential(tc.credentialTTL)
+			ephemeralKey, err := ephemeral.NewEphemeralKey(&ephemeral.EphemeralKeyConfig{})
 			if err != nil {
 				t.Error(err.Error())
 			}
 
-			accessToken, err := tc.tokenGen(serverKey, getAddressFromKey(&credential.EphemeralPrivateKey.PublicKey), tc.accessTokenTTL)
+			accessToken, err := tc.tokenGen(serverKey, getAddressFromKey(ephemeralKey.PublicKey()), tc.accessTokenTTL)
 			if err != nil {
 				t.Error(err.Error())
 			}
 
 			msg := randomMessage(50)
 
-			now := time.Now().Unix()
-
-			msgHash, err := commons.GenerateMessageHash(msg, now)
-			if err != nil {
-				t.Error(err.Error())
-			}
-
-			fields, err := credential.MakeCredentials(msgHash, accessToken, now)
+			fields, err := ephemeralKey.MakeCredentials(msg, accessToken)
 			if err != nil {
 				t.Error(err.Error())
 			}
@@ -281,9 +259,10 @@ func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
 			if tc.alternativePubKey != nil {
 				key = tc.alternativePubKey
 			}
-			authHandler := auth.NewAuthProvider(
-				&authentication.ThirdPartyStrategy{RequestLifeSpan: tc.requestTTL, TrustedKey: key},
-				&authorization.AllowAllStrategy{})
+			authHandler, err := auth.NewThirdPartyAuthProvider(&auth.ThirdPartyProviderConfig{RequestLifeSpan: tc.requestTTL, TrustedKey: key})
+			if err != nil {
+				t.Fail()
+			}
 
 			r := &auth.AuthRequest{Credentials: fields, Content: msg}
 
@@ -343,7 +322,10 @@ func thirdPartyAssertError(message string) func(ok bool, err error, t *testing.T
 }
 
 func checkRequest(t *testing.T, req *http.Request, authn auth.AuthenticationStrategy, authz auth.AuthorizationStrategy) {
-	authHandler := auth.NewAuthProvider(authn, authz)
+	authHandler, err := auth.NewAuthProvider(authn, authz)
+	if err != nil {
+		t.Fail()
+	}
 
 	r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org/")
 	if err != nil {

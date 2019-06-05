@@ -1,8 +1,7 @@
-package authentication
+package auth
 
 import (
 	"fmt"
-	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strconv"
@@ -13,7 +12,7 @@ import (
 
 const validCertificate = "0x446563656e7472616c616e64204163636573732041757468204b65793a203034613939623066383966306234623935366164666261343733366666663639336361353935663662636233386438623939636564633162633833356432333234356364336632383562373163623232633336373233616638666139613261333439636235613962666464376339623765643030363633666330323462613031343720546f6b656e3a206d61696e6e65743a2f2f3078313233343520446174653a20323031392d30322d31335431383a31353a35325a20457870697265733a20323230392d30342d30335430343a35353a35325a"
 const validCertificateSignature = "0x0df9472bd84af4fd1ef0428ebc60f4fc46a41f07574f266c3b35439dcb3dd6430dfc61ae4d591d0fb8e8e9a719802aa62a15a7505a392e3448c03bc3be3b3deb1b"
-const validIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749858/temp/0x03a99b0f89f0b4b956adfba4736fff693ca595f6bcb38d8b99cedc1bc835d23245"
+const validAuthnIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749858/temp/0x03a99b0f89f0b4b956adfba4736fff693ca595f6bcb38d8b99cedc1bc835d23245"
 const validSignature = "b640b616fabd440cd9632f8fab5fe1f5c18d4c8304017ea8b70b0790b2a215f709c2f10ede5da85381c7b24680ad5e90be961929df9c686ee315cf68d4bff346"
 const validTimeStamp = "1550080457"
 
@@ -50,12 +49,12 @@ var validateCredentialsTc = []validateCredentialsData{
 		name:          "Valid Credentials",
 		timeToLiveGen: generateValidTTL,
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           validCertificate,
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             validSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "self-granted"},
 		resultAssertion: assertResultOk,
 	},
 	{
@@ -64,12 +63,12 @@ var validateCredentialsTc = []validateCredentialsData{
 			return 0
 		},
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           validCertificate,
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             validSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "self-granted"},
 		errorMessage:    "request expired",
 		resultAssertion: assertErrorMessage,
 	},
@@ -79,12 +78,12 @@ var validateCredentialsTc = []validateCredentialsData{
 			return 10000
 		},
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           validCertificate,
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             validSignature,
-			"x-timestamp":             "This is not a timestamp",
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     "This is not a timestamp",
+			HeaderAuthType:      "self-granted"},
 		errorMessage:    "invalid timestamp",
 		resultAssertion: assertErrorMessage,
 	},
@@ -92,12 +91,12 @@ var validateCredentialsTc = []validateCredentialsData{
 		name:          "Invalid identity header",
 		timeToLiveGen: generateValidTTL,
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           validCertificate,
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       "not the identity header",
-			"x-signature":             validSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      "not the identity header",
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "self-granted"},
 		errorMessage:    "malformed 'x-identity' header: not the identity header",
 		resultAssertion: assertErrorMessage,
 	},
@@ -105,12 +104,12 @@ var validateCredentialsTc = []validateCredentialsData{
 		name:          "Invalid Signature",
 		timeToLiveGen: generateValidTTL,
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           validCertificate,
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             wrongSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     wrongSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "self-granted"},
 		errorMessage:    "invalid Signature",
 		resultAssertion: assertErrorMessage,
 	},
@@ -118,12 +117,12 @@ var validateCredentialsTc = []validateCredentialsData{
 		name:          "Invalid Certificate Signature",
 		timeToLiveGen: generateValidTTL,
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           validCertificate,
-			"x-certificate-signature": "0x884e",
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             validSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: "0x884e",
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "self-granted"},
 		errorMessage:    "invalid certificate signature",
 		resultAssertion: assertErrorMessage,
 	},
@@ -131,12 +130,12 @@ var validateCredentialsTc = []validateCredentialsData{
 		name:          "Invalid Certificate",
 		timeToLiveGen: generateValidTTL,
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           "0x4465",
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             validSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          "0x4465",
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "self-granted"},
 		errorMessage:    "invalid certificate",
 		resultAssertion: assertErrorMessage,
 	},
@@ -144,12 +143,12 @@ var validateCredentialsTc = []validateCredentialsData{
 		name:          "Expired Certificate",
 		timeToLiveGen: generateValidTTL,
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           expiredCertificate,
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             validSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "self-granted"},
+			HeaderCert:          expiredCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "self-granted"},
 		errorMessage:    "expired certificate",
 		resultAssertion: assertErrorMessage,
 	},
@@ -157,12 +156,12 @@ var validateCredentialsTc = []validateCredentialsData{
 		name:          "Wrong Certificate type",
 		timeToLiveGen: generateValidTTL,
 		requestHeaders: map[string]string{
-			auth.HeaderCert:           validCertificate,
-			"x-certificate-signature": validCertificateSignature,
-			auth.HeaderIdentity:       validIdentity,
-			"x-signature":             validSignature,
-			"x-timestamp":             validTimeStamp,
-			"x-auth-type":             "third-party"},
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     validTimeStamp,
+			HeaderAuthType:      "third-party"},
 		errorMessage:    "invalid credential type",
 		resultAssertion: assertErrorMessage,
 	},
@@ -171,12 +170,12 @@ var validateCredentialsTc = []validateCredentialsData{
 func TestValidateCredentials(t *testing.T) {
 	for _, tc := range validateCredentialsTc {
 		t.Run(tc.name, func(t *testing.T) {
-			v := &SelfGrantedStrategy{RequestLifeSpan: tc.timeToLiveGen(tc.requestHeaders["x-timestamp"])}
-			req, err := buildRequest(tc.requestHeaders)
+			v := &SelfGrantedStrategy{RequestLifeSpan: tc.timeToLiveGen(tc.requestHeaders[HeaderTimestamp])}
+			req, err := buildAuthRequest(tc.requestHeaders)
 			if err != nil {
 				t.Fail()
 			}
-			r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org")
+			r, err := MakeFromHttpRequest(req, "http://market.decentraland.org")
 			if err != nil {
 				t.Fail()
 			}
@@ -186,7 +185,7 @@ func TestValidateCredentials(t *testing.T) {
 	}
 }
 
-func buildRequest(headers map[string]string) (*http.Request, error) {
+func buildAuthRequest(headers map[string]string) (*http.Request, error) {
 	text := "{\"param1\":\"data1\",\"param2\":\"data2\"}"
 
 	req, err := http.NewRequest("POST", "http://market.decentraland.org/api/v1/marketplace", strings.NewReader(text))

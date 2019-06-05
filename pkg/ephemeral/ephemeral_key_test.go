@@ -29,7 +29,7 @@ func TestGenerateEphemeralKeys(t *testing.T) {
 	duration := time.Minute * time.Duration(ttlInMinutes)
 
 	accountInfo := &EthAccountInfo{TokenAddress: "0x12345", Account: testAddress, Passphrase: ""}
-	credential, err := GenerateEthBasedCredential(accountInfo, mockEth, ttlInMinutes)
+	credential, err := GenerateEthEphemeralKey(accountInfo, mockEth, ttlInMinutes)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, credential)
@@ -51,11 +51,11 @@ func TestGenerateDifferentKeys(t *testing.T) {
 
 	accountInfo := &EthAccountInfo{TokenAddress: "0x12345", Account: testAddress, Passphrase: ""}
 
-	c1, err := GenerateEthBasedCredential(accountInfo, mockEth, ttlInMinutes)
+	c1, err := GenerateEthEphemeralKey(accountInfo, mockEth, ttlInMinutes)
 	if err != nil {
 		t.Fail()
 	}
-	c2, err := GenerateEthBasedCredential(accountInfo, mockEth, ttlInMinutes)
+	c2, err := GenerateEthEphemeralKey(accountInfo, mockEth, ttlInMinutes)
 	if err != nil {
 		t.Fail()
 	}
@@ -63,7 +63,7 @@ func TestGenerateDifferentKeys(t *testing.T) {
 	assert.False(t, bytes.Equal(crypto.FromECDSA(c1.EphemeralPrivateKey), crypto.FromECDSA(c2.EphemeralPrivateKey)))
 }
 
-func assertExpirationTime(t *testing.T, c *EthBasedCredential, duration time.Duration) {
+func assertExpirationTime(t *testing.T, c *EthEphemeralKey, duration time.Duration) {
 	bs, err := hex.DecodeString(c.Message[2:])
 	if err != nil {
 		t.Errorf(err.Error())
