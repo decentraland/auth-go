@@ -12,7 +12,7 @@ This type of credential require the intervention of a third party (authenticatio
 ```go
 import "github.com/decentraland/auth-go/pkg/ephemeral"
 
-ephKey, _  := ephemeral.GenerateSimpleCredential()
+ephKey, _  := ephemeral.NewEphemeralKey(&ephemeral.EphemeralKeyConfig{})
 ```  
 
 #### Request credentials generation
@@ -37,7 +37,7 @@ For WebRTC or non HTTP requests you should be able to obtain all the credentials
 ```go
 import "github.com/decentraland/auth-go/pkg/ephemeral"
 
-ephKey, _  := ephemeral.GenerateSimpleCredential()
+ephKey, _  := ephemeral.NewEphemeralKey(&ephemeral.EphemeralKeyConfig{})
 
 msg := []byte("Your Message")
 
@@ -77,7 +77,7 @@ accInfo := &ephemeral.EthAccountInfo{Account: acc, Passphrase: accountPass}
 
 timeToLive := 10 // In seconds
 
-ephKey, _ := ephemeral.GenerateEthBasedCredential(accInfo, c, timeToLive)
+ephKey, _ := ephemeral.GenerateEthEphemeralKey(accInfo, c, timeToLive)
 ```  
 
 #### Request credentials generation
@@ -131,8 +131,6 @@ The service provider will need to know the entity who signs the access token, ot
 ```go
 import (
 	"github.com/decentraland/auth-go/pkg/auth"
-	"github.com/decentraland/auth-go/pkg/authentication"
-	"github.com/decentraland/auth-go/pkg/authorization"
 	"github.com/decentraland/auth-go/pkg/keys"
 )
 
@@ -172,8 +170,6 @@ ok, err := authHandler.ApproveRequest(req)
 ```go
 import (
 	"github.com/decentraland/auth-go/pkg/auth"
-	"github.com/decentraland/auth-go/pkg/authentication"
-	"github.com/decentraland/auth-go/pkg/authorization"
 	"net/http"
 )
 
@@ -193,8 +189,6 @@ ok, err := authHandler.ApproveRequest(req)
 ```go
 import (
 	"github.com/decentraland/auth-go/pkg/auth"
-	"github.com/decentraland/auth-go/pkg/authentication"
-	"github.com/decentraland/auth-go/pkg/authorization"
 	"github.com/decentraland/auth-go/pkg/keys"
 )
 
