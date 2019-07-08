@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,14 +15,14 @@ const validCertificate = "0x446563656e7472616c616e64204163636573732041757468204b
 const validCertificateSignature = "0x0df9472bd84af4fd1ef0428ebc60f4fc46a41f07574f266c3b35439dcb3dd6430dfc61ae4d591d0fb8e8e9a719802aa62a15a7505a392e3448c03bc3be3b3deb1b"
 const validAuthnIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749858/temp/0x03a99b0f89f0b4b956adfba4736fff693ca595f6bcb38d8b99cedc1bc835d23245"
 const validSignature = "b640b616fabd440cd9632f8fab5fe1f5c18d4c8304017ea8b70b0790b2a215f709c2f10ede5da85381c7b24680ad5e90be961929df9c686ee315cf68d4bff346"
-const validTimeStamp = "1550080457"
+const validTimeStamp = 1550080457
 
 const wrongSignature = "1c9d60a1883ecad4935ef8fabeaba74c0841f8aa0d981247fc25c92611ac645f2bf1b181406dde06993ed3f57f2d935e1a0ac95a68ec546f8d30e9b2e616dd97"
 const expiredCertificate = "0x446563656e7472616c616e64204163636573732041757468204b65793a203034333333323766373364306633663837313731393039393535643837613162393339333736333430366266356438663139343032353665653064363265623561336139633332303638366262653266656637383366666537356239653635623735616232653161616134383431663134656637653866613663666136663035356120546f6b656e3a206d61696e6e65743a2f2f3078313233343520446174653a20323031302d31312d32395431353a33373a30325a20457870697265733a20323031302d31312d32395431353a34373a30325a"
 
 type validateCredentialsData struct {
 	name            string
-	timeToLiveGen   func(timestamp string) int64
+	tolerance       int64
 	requestHeaders  map[string]string
 	errorMessage    string
 	resultAssertion func(t *testing.T, err error, expectedMsg string)
@@ -38,45 +39,35 @@ func assertResultOk(t *testing.T, err error, expectedMsg string) {
 	}
 }
 
-func generateValidTTL(timestamp string) int64 {
-	seconds, _ := strconv.ParseInt(timestamp, 10, 64)
-	current := time.Now().Unix()
-	return (current - seconds) + 1000
-}
-
 var validateCredentialsTc = []validateCredentialsData{
 	{
-		name:          "Valid Credentials",
-		timeToLiveGen: generateValidTTL,
+		name:      "Valid Credentials",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
 		requestHeaders: map[string]string{
 			HeaderCert:          validCertificate,
 			HeaderCertSignature: validCertificateSignature,
 			HeaderIdentity:      validAuthnIdentity,
 			HeaderSignature:     validSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "self-granted"},
 		resultAssertion: assertResultOk,
 	},
 	{
-		name: "Expired AuthRequest",
-		timeToLiveGen: func(timestamp string) int64 {
-			return 0
-		},
+		name:      "Expired AuthRequest",
+		tolerance: 0,
 		requestHeaders: map[string]string{
 			HeaderCert:          validCertificate,
 			HeaderCertSignature: validCertificateSignature,
 			HeaderIdentity:      validAuthnIdentity,
 			HeaderSignature:     validSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "self-granted"},
 		errorMessage:    "request expired",
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name: "Invalid Timestamp",
-		timeToLiveGen: func(timestamp string) int64 {
-			return 10000
-		},
+		name:      "Invalid Timestamp",
+		tolerance: 10000,
 		requestHeaders: map[string]string{
 			HeaderCert:          validCertificate,
 			HeaderCertSignature: validCertificateSignature,
@@ -88,89 +79,101 @@ var validateCredentialsTc = []validateCredentialsData{
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:          "Invalid identity header",
-		timeToLiveGen: generateValidTTL,
+		name:      "Invalid identity header",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
 		requestHeaders: map[string]string{
 			HeaderCert:          validCertificate,
 			HeaderCertSignature: validCertificateSignature,
 			HeaderIdentity:      "not the identity header",
 			HeaderSignature:     validSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "self-granted"},
 		errorMessage:    "malformed 'x-identity' header: not the identity header",
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:          "Invalid Signature",
-		timeToLiveGen: generateValidTTL,
+		name:      "Invalid Signature",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
 		requestHeaders: map[string]string{
 			HeaderCert:          validCertificate,
 			HeaderCertSignature: validCertificateSignature,
 			HeaderIdentity:      validAuthnIdentity,
 			HeaderSignature:     wrongSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "self-granted"},
 		errorMessage:    "invalid Signature",
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:          "Invalid Certificate Signature",
-		timeToLiveGen: generateValidTTL,
+		name:      "Invalid Certificate Signature",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
 		requestHeaders: map[string]string{
 			HeaderCert:          validCertificate,
 			HeaderCertSignature: "0x884e",
 			HeaderIdentity:      validAuthnIdentity,
 			HeaderSignature:     validSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "self-granted"},
 		errorMessage:    "invalid certificate signature",
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:          "Invalid Certificate",
-		timeToLiveGen: generateValidTTL,
+		name:      "Invalid Certificate",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
 		requestHeaders: map[string]string{
 			HeaderCert:          "0x4465",
 			HeaderCertSignature: validCertificateSignature,
 			HeaderIdentity:      validAuthnIdentity,
 			HeaderSignature:     validSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "self-granted"},
 		errorMessage:    "invalid certificate",
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:          "Expired Certificate",
-		timeToLiveGen: generateValidTTL,
+		name:      "Expired Certificate",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
 		requestHeaders: map[string]string{
 			HeaderCert:          expiredCertificate,
 			HeaderCertSignature: validCertificateSignature,
 			HeaderIdentity:      validAuthnIdentity,
 			HeaderSignature:     validSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "self-granted"},
 		errorMessage:    "expired certificate",
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:          "Wrong Certificate type",
-		timeToLiveGen: generateValidTTL,
+		name:      "Wrong Certificate type",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
 		requestHeaders: map[string]string{
 			HeaderCert:          validCertificate,
 			HeaderCertSignature: validCertificateSignature,
 			HeaderIdentity:      validAuthnIdentity,
 			HeaderSignature:     validSignature,
-			HeaderTimestamp:     validTimeStamp,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
 			HeaderAuthType:      "third-party"},
 		errorMessage:    "invalid credential type",
 		resultAssertion: assertErrorMessage,
+	},
+	{
+		name:      "Valid Credentials",
+		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
+		requestHeaders: map[string]string{
+			HeaderCert:          validCertificate,
+			HeaderCertSignature: validCertificateSignature,
+			HeaderIdentity:      validAuthnIdentity,
+			HeaderSignature:     validSignature,
+			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
+			HeaderAuthType:      "self-granted"},
+		resultAssertion: assertResultOk,
 	},
 }
 
 func TestValidateCredentials(t *testing.T) {
 	for _, tc := range validateCredentialsTc {
 		t.Run(tc.name, func(t *testing.T) {
-			v := &SelfGrantedStrategy{RequestLifeSpan: tc.timeToLiveGen(tc.requestHeaders[HeaderTimestamp])}
+			v := &SelfGrantedStrategy{RequestTolerance: tc.tolerance}
 			req, err := buildAuthRequest(tc.requestHeaders)
 			if err != nil {
 				t.Fail()
@@ -183,6 +186,26 @@ func TestValidateCredentials(t *testing.T) {
 			tc.resultAssertion(t, err, tc.errorMessage)
 		})
 	}
+}
+
+func TestCheckRequestTimestamp(t *testing.T) {
+	var tolerance = int64(1000)
+
+	// Within tolerance in the past
+	err := checkRequestExpiration(strconv.Itoa(int(time.Now().Unix()-999)), tolerance)
+	require.NoError(t, err)
+
+	// Within tolerance in the future
+	err = checkRequestExpiration(strconv.Itoa(int(time.Now().Unix()+999)), tolerance)
+	require.NoError(t, err)
+
+	// Outside tolerance in the future
+	err = checkRequestExpiration(strconv.Itoa(int(time.Now().Unix()+1001)), tolerance)
+	require.Error(t, err)
+
+	// Outside tolerance in the past
+	err = checkRequestExpiration(strconv.Itoa(int(time.Now().Unix()-1001)), tolerance)
+	require.Error(t, err)
 }
 
 func buildAuthRequest(headers map[string]string) (*http.Request, error) {

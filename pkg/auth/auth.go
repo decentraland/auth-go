@@ -61,7 +61,7 @@ func NewThirdPartyAuthProvider(config *ThirdPartyProviderConfig) (AuthProvider, 
 		if config.TrustedKey == nil {
 			return nil, errors.New("missing required trusted key")
 		}
-		authn = &ThirdPartyStrategy{RequestLifeSpan: config.RequestLifeSpan, TrustedKey: config.TrustedKey}
+		authn = &ThirdPartyStrategy{RequestTolerance: config.RequestLifeSpan, TrustedKey: config.TrustedKey}
 	}
 
 	authz := config.Authz

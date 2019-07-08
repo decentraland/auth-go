@@ -16,8 +16,8 @@ import (
 const thirdPartyUserIdPattern = "public key derived address: (.*)"
 
 type ThirdPartyStrategy struct {
-	RequestLifeSpan int64
-	TrustedKey      *ecdsa.PublicKey
+	RequestTolerance int64
+	TrustedKey       *ecdsa.PublicKey
 }
 
 type AccessTokenPayload struct {
@@ -54,7 +54,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (bool, error) {
 
 	ephPbKey := tokens[0]
 
-	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestLifeSpan); err != nil {
+	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestTolerance); err != nil {
 		return false, err
 	}
 

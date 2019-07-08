@@ -5,14 +5,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/decentraland/auth-go/internal/utils"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/decentraland/auth-go/internal/utils"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 const certificatePattern = ".*Date: (.*) Expires: (.*)"
@@ -26,7 +27,7 @@ func (s *AllowAllAuthnStrategy) Authenticate(r *AuthRequest) (bool, error) {
 }
 
 type SelfGrantedStrategy struct {
-	RequestLifeSpan int64
+	RequestTolerance int64
 }
 
 // Validates the request credentials generated with the EphemeralKeys protocol
@@ -53,7 +54,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (bool, error) {
 	certAddress := tokens[0]
 	ephPbKey := tokens[1]
 
-	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestLifeSpan); err != nil {
+	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestTolerance); err != nil {
 		return false, err
 	}
 
@@ -68,14 +69,21 @@ func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (bool, error) {
 	return true, nil
 }
 
+func abs(v int64) int64 {
+	if v > 0 {
+		return v
+	}
+	return -v
+}
+
 // Verifies request expiration
 func checkRequestExpiration(timestamp string, ttl int64) error {
-	seconds, err := strconv.ParseInt(timestamp, 10, 64)
+	t, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
 		return errors.New("invalid timestamp")
 	}
 	now := time.Now().Unix()
-	if seconds > now || now-seconds > ttl {
+	if abs(now-t) > ttl {
 		return errors.New("request expired")
 	}
 	return nil

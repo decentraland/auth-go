@@ -54,7 +54,7 @@ func TestEphemeralKeys(t *testing.T) {
 
 	dclApi := os.Getenv("DCL_API")
 
-	checkRequest(t, req, &auth.SelfGrantedStrategy{RequestLifeSpan: 10}, auth.NewInviteStrategy(dclApi))
+	checkRequest(t, req, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclApi))
 
 	get := buildGetRequest()
 
@@ -62,7 +62,7 @@ func TestEphemeralKeys(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	checkRequest(t, get, &auth.SelfGrantedStrategy{RequestLifeSpan: 10}, auth.NewInviteStrategy(dclApi))
+	checkRequest(t, get, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclApi))
 }
 
 type thirdPartyTestCase struct {
