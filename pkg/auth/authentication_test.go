@@ -1,7 +1,12 @@
 package auth
 
 import (
+	"crypto/ecdsa"
 	"fmt"
+	"github.com/decentraland/auth-go/pkg/ephemeral"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/signer/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -11,20 +16,14 @@ import (
 	"time"
 )
 
-const validCertificate = "0x446563656e7472616c616e64204163636573732041757468204b65793a203034613939623066383966306234623935366164666261343733366666663639336361353935663662636233386438623939636564633162633833356432333234356364336632383562373163623232633336373233616638666139613261333439636235613962666464376339623765643030363633666330323462613031343720546f6b656e3a206d61696e6e65743a2f2f3078313233343520446174653a20323031392d30322d31335431383a31353a35325a20457870697265733a20323230392d30342d30335430343a35353a35325a"
-const validCertificateSignature = "0x0df9472bd84af4fd1ef0428ebc60f4fc46a41f07574f266c3b35439dcb3dd6430dfc61ae4d591d0fb8e8e9a719802aa62a15a7505a392e3448c03bc3be3b3deb1b"
-const validAuthnIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749858/temp/0x03a99b0f89f0b4b956adfba4736fff693ca595f6bcb38d8b99cedc1bc835d23245"
-const validSignature = "b640b616fabd440cd9632f8fab5fe1f5c18d4c8304017ea8b70b0790b2a215f709c2f10ede5da85381c7b24680ad5e90be961929df9c686ee315cf68d4bff346"
-const validTimeStamp = 1550080457
-
 const wrongSignature = "1c9d60a1883ecad4935ef8fabeaba74c0841f8aa0d981247fc25c92611ac645f2bf1b181406dde06993ed3f57f2d935e1a0ac95a68ec546f8d30e9b2e616dd97"
 const expiredCertificate = "0x446563656e7472616c616e64204163636573732041757468204b65793a203034333333323766373364306633663837313731393039393535643837613162393339333736333430366266356438663139343032353665653064363265623561336139633332303638366262653266656637383366666537356239653635623735616232653161616134383431663134656637653866613663666136663035356120546f6b656e3a206d61696e6e65743a2f2f3078313233343520446174653a20323031302d31312d32395431353a33373a30325a20457870697265733a20323031302d31312d32395431353a34373a30325a"
 
 type validateCredentialsData struct {
 	name            string
 	tolerance       int64
-	requestHeaders  map[string]string
 	errorMessage    string
+	modifiedHeaders map[string]string
 	resultAssertion func(t *testing.T, err error, expectedMsg string)
 }
 
@@ -33,7 +32,7 @@ func assertErrorMessage(t *testing.T, err error, expectedMsg string) {
 	assert.Equal(t, expectedMsg, err.Error(), fmt.Sprintf("Expected Message: '%s'. Got: '%s'", expectedMsg, err.Error()))
 }
 
-func assertResultOk(t *testing.T, err error, expectedMsg string) {
+func assertResultOk(t *testing.T, err error, _ string) {
 	if err != nil {
 		t.Fail()
 	}
@@ -41,143 +40,111 @@ func assertResultOk(t *testing.T, err error, expectedMsg string) {
 
 var validateCredentialsTc = []validateCredentialsData{
 	{
-		name:      "Valid Credentials",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
+		name:            "Valid Credentials",
+		tolerance:       1000,
 		resultAssertion: assertResultOk,
 	},
 	{
-		name:      "Expired AuthRequest",
-		tolerance: 0,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
+		name:            "Expired AuthRequest",
+		tolerance:       -1,
 		errorMessage:    "request expired",
 		resultAssertion: assertErrorMessage,
 	},
 	{
 		name:      "Invalid Timestamp",
 		tolerance: 10000,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     "This is not a timestamp",
-			HeaderAuthType:      "self-granted"},
+		modifiedHeaders: map[string]string{
+			HeaderTimestamp: "This is not a timestamp"},
 		errorMessage:    "invalid timestamp",
 		resultAssertion: assertErrorMessage,
 	},
 	{
 		name:      "Invalid identity header",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      "not the identity header",
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
+		tolerance: 1000,
+		modifiedHeaders: map[string]string{
+			HeaderIdentity: "not the identity header"},
 		errorMessage:    "malformed 'x-identity' header: not the identity header",
 		resultAssertion: assertErrorMessage,
 	},
 	{
 		name:      "Invalid Signature",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     wrongSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
+		tolerance: 1000,
+		modifiedHeaders: map[string]string{
+			HeaderSignature: wrongSignature,
+		},
 		errorMessage:    "invalid Signature",
 		resultAssertion: assertErrorMessage,
 	},
 	{
 		name:      "Invalid Certificate Signature",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
+		tolerance: 1000,
+		modifiedHeaders: map[string]string{
 			HeaderCertSignature: "0x884e",
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
+		},
 		errorMessage:    "invalid certificate signature",
 		resultAssertion: assertErrorMessage,
 	},
 	{
 		name:      "Invalid Certificate",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          "0x4465",
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
+		tolerance: 0,
+		modifiedHeaders: map[string]string{
+			HeaderCert: "0x4465",
+		},
 		errorMessage:    "invalid certificate",
 		resultAssertion: assertErrorMessage,
 	},
 	{
 		name:      "Expired Certificate",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          expiredCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
+		tolerance: 1000,
+		modifiedHeaders: map[string]string{
+			HeaderCert: expiredCertificate,
+		},
 		errorMessage:    "expired certificate",
 		resultAssertion: assertErrorMessage,
 	},
 	{
 		name:      "Wrong Certificate type",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "third-party"},
+		tolerance: 1000,
+		modifiedHeaders: map[string]string{
+			HeaderAuthType: "third-party"},
 		errorMessage:    "invalid credential type",
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:      "Valid Credentials",
-		tolerance: (time.Now().Unix() - validTimeStamp) + 1000,
-		requestHeaders: map[string]string{
-			HeaderCert:          validCertificate,
-			HeaderCertSignature: validCertificateSignature,
-			HeaderIdentity:      validAuthnIdentity,
-			HeaderSignature:     validSignature,
-			HeaderTimestamp:     strconv.Itoa(validTimeStamp),
-			HeaderAuthType:      "self-granted"},
-		resultAssertion: assertResultOk,
+		name:      "Fail request way into future",
+		tolerance: 1000,
+		modifiedHeaders: map[string]string{
+			HeaderTimestamp: strconv.FormatInt(time.Now().Unix()+1500, 10)},
+		errorMessage:    "request expired",
+		resultAssertion: assertErrorMessage,
 	},
 }
 
 func TestValidateCredentials(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	accountInfo := &ephemeral.EthAccountInfo{TokenAddress: "0x12345", Account: getEthAddress(key), Passphrase: ""}
+
+	mock := &ethClientMock{network: "1", key: key}
+
 	for _, tc := range validateCredentialsTc {
 		t.Run(tc.name, func(t *testing.T) {
+
+			ephKey, err := ephemeral.GenerateEthEphemeralKey(accountInfo, mock, 1000)
+			require.NoError(t, err)
+
 			v := &SelfGrantedStrategy{RequestTolerance: tc.tolerance}
-			req, err := buildAuthRequest(tc.requestHeaders)
-			if err != nil {
-				t.Fail()
+
+			req, err := buildAuthRequest()
+			err = ephKey.AddRequestHeaders(req)
+			require.NoError(t, err)
+
+			if tc.modifiedHeaders != nil {
+				for header, val := range tc.modifiedHeaders {
+					req.Header.Set(header, val)
+				}
 			}
+
 			r, err := MakeFromHttpRequest(req, "http://market.decentraland.org")
 			if err != nil {
 				t.Fail()
@@ -208,15 +175,42 @@ func TestCheckRequestTimestamp(t *testing.T) {
 	require.Error(t, err)
 }
 
-func buildAuthRequest(headers map[string]string) (*http.Request, error) {
+func buildAuthRequest() (*http.Request, error) {
 	text := "{\"param1\":\"data1\",\"param2\":\"data2\"}"
 
-	req, err := http.NewRequest("POST", "http://market.decentraland.org/api/v1/marketplace", strings.NewReader(text))
+	return http.NewRequest("POST", "http://market.decentraland.org/api/v1/marketplace", strings.NewReader(text))
+}
+
+type ethClientMock struct {
+	network string
+	key     *ecdsa.PrivateKey
+}
+
+func (c *ethClientMock) NetVersion() (string, error) {
+	return c.network, nil
+}
+
+func (c *ethClientMock) ListAccounts() ([]string, error) {
+	return nil, nil
+}
+
+func (c *ethClientMock) Sign(message string, address string, pass string) (string, error) {
+	decodedMsg, err := hexutil.Decode(message)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	for k, v := range headers {
-		req.Header.Set(k, v)
+	mBytes, _ := core.SignHash(decodedMsg)
+	sigBytes, err := crypto.Sign(mBytes, c.key)
+	if err != nil {
+		return "", err
 	}
-	return req, err
+	return hexutil.Encode(sigBytes), nil
+}
+
+func (c *ethClientMock) GetDefaultAccount() (string, error) {
+	return "", nil
+}
+
+func getEthAddress(key *ecdsa.PrivateKey) string {
+	return crypto.PubkeyToAddress(key.PublicKey).Hex()
 }

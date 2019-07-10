@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/signer/core"
 	"regexp"
 	"strconv"
 	"strings"
@@ -166,10 +167,11 @@ func validateCertificateSignature(cert string, signature string, address string)
 		return err
 	}
 
-	certHash, err := getPersonalSignFormattedMessage(cert)
+	decodedMsg, err := hexutil.Decode(cert)
 	if err != nil {
 		return err
 	}
+	certHash, _ := core.SignHash(decodedMsg)
 
 	publicKeyBytes, err := crypto.Ecrecover(certHash, sb)
 	if err != nil {
@@ -211,20 +213,6 @@ func extractDatesFromCertificate(cert string) (*time.Time, *time.Time, error) {
 	}
 
 	return &credentialDate, &expirationDate, nil
-}
-
-/**
- * The sign method calculates an Ethereum specific signature with:
- * sign(keccack256("\x19Ethereum Signed Message:\n" + len(message) + message))).
- * This methods adds this prefix to the message to make it equivalent to the
- * Message eth node ends up signing
- */
-func getPersonalSignFormattedMessage(msg string) ([]byte, error) {
-	mb, err := hexutil.Decode(msg)
-	if err != nil {
-		return nil, err
-	}
-	return crypto.Keccak256([]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(mb), mb))), nil
 }
 
 func decodeCertificateSignature(signature string) ([]byte, error) {
