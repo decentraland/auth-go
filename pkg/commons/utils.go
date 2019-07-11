@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -29,7 +30,11 @@ func ReadRequestBody(r *http.Request) ([]byte, error) {
 // Retrieves a sha256 from the following message: request method + request url + timestamp + request body
 func GenerateHttpRequestHash(r *http.Request, timestamp int64) ([]byte, error) {
 	method := r.Method
-	url := r.URL.String()
+
+	u, err := url.QueryUnescape(r.URL.String())
+	if err != nil {
+		return nil, err
+	}
 
 	b, err := ReadRequestBody(r)
 	if err != nil {
@@ -37,7 +42,7 @@ func GenerateHttpRequestHash(r *http.Request, timestamp int64) ([]byte, error) {
 	}
 
 	toSign := []byte(method)
-	toSign = append(toSign, []byte(url)...)
+	toSign = append(toSign, []byte(u)...)
 	toSign = append(toSign, []byte(strconv.FormatInt(timestamp, 10))...)
 	if b != nil {
 		toSign = append(toSign, b...)

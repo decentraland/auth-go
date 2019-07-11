@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/decentraland/auth-go/pkg/commons"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -141,11 +142,16 @@ func MakeFromHttpRequest(r *http.Request, publicBaseUrl string) (*AuthRequest, e
 		return nil, err
 	}
 
+	path, err := url.QueryUnescape(r.URL.RequestURI())
+	if err != nil {
+		return nil, err
+	}
+
 	return &AuthRequest{
 		Credentials: credentials,
 		Content:     content,
 		Method:      r.Method,
-		URL:         buildUrl(publicBaseUrl, r.URL.RequestURI()),
+		URL:         buildUrl(publicBaseUrl, path),
 	}, nil
 }
 

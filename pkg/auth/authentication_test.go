@@ -175,6 +175,31 @@ func TestCheckRequestTimestamp(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDecodeUrlPath(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	accountInfo := &ephemeral.EthAccountInfo{TokenAddress: "0x12345", Account: getEthAddress(key), Passphrase: ""}
+
+	mock := &ethClientMock{network: "1", key: key}
+
+	ephKey, err := ephemeral.GenerateEthEphemeralKey(accountInfo, mock, 1000)
+	require.NoError(t, err)
+
+	v := &SelfGrantedStrategy{RequestTolerance: 1000}
+
+	text := "{\"param1\":\"data1\",\"param2\":\"data2\"}"
+	req, err := http.NewRequest("POST", "http://market.decentraland.org/api/v1/this will|be-encoded", strings.NewReader(text))
+
+	err = ephKey.AddRequestHeaders(req)
+	require.NoError(t, err)
+
+	r, err := MakeFromHttpRequest(req, "http://market.decentraland.org")
+	require.NoError(t, err)
+
+	_, err = v.Authenticate(r)
+	require.NoError(t, err)
+}
+
 func buildAuthRequest() (*http.Request, error) {
 	text := "{\"param1\":\"data1\",\"param2\":\"data2\"}"
 
