@@ -13,21 +13,14 @@ const validIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749858/t
 type authorizeRequestData struct {
 	name            string
 	requestHeaders  map[string]string
-	resultAssertion func(t *testing.T, result bool, err error)
+	resultAssertion func(t *testing.T, err error)
 }
 
-func assertError(t *testing.T, result bool, err error) {
-	assert.False(t, result)
+func assertError(t *testing.T, err error) {
 	assert.NotNil(t, err)
 }
 
-func assertTrueResult(t *testing.T, result bool, err error) {
-	assert.True(t, result)
-	assert.Nil(t, err)
-}
-
-func assertFalseResult(t *testing.T, result bool, err error) {
-	assert.False(t, result)
+func assertOkResult(t *testing.T, err error) {
 	assert.Nil(t, err)
 }
 
@@ -35,12 +28,12 @@ var authorizeRequestTc = []authorizeRequestData{
 	{
 		name:            "Authorized AuthRequest",
 		requestHeaders:  map[string]string{HeaderIdentity: validIdentity},
-		resultAssertion: assertTrueResult,
+		resultAssertion: assertOkResult,
 	},
 	{
 		name:            "Uninvited Address",
 		requestHeaders:  map[string]string{HeaderIdentity: notInvitedIdentity},
-		resultAssertion: assertFalseResult,
+		resultAssertion: assertError,
 	},
 	{
 		name:            "Missing header",
@@ -67,8 +60,8 @@ func TestAuthorizeRequest(t *testing.T) {
 			if err != nil {
 				t.Fail()
 			}
-			result, err := inviteStrategy.Authorize(r)
-			tc.resultAssertion(t, result, err)
+			_, err = inviteStrategy.Authorize(r)
+			tc.resultAssertion(t, err)
 		})
 	}
 }

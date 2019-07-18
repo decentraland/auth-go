@@ -31,42 +31,44 @@ func (a AccessTokenPayload) isValid() bool {
 	return a.EphemeralKey != "" && a.Expiration > 0 && a.UserId != "" && a.Version != ""
 }
 
-func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (bool, error) {
+func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	cred := r.Credentials
-
+	output := NewResultOutput()
 	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderAccessToken, HeaderSignature, HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
-		return false, err
+		return output, err
 	}
 
 	if err := validateCertificateType(cred, "third-party"); err != nil {
-		return false, err
+		return output, err
 	}
 
 	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], thirdPartyUserIdPattern)
 	if err != nil {
-		return false, err
+		return output, err
 	}
 
 	if len(tokens) != 1 {
-		return false, fmt.Errorf("unable to exctract required information from 'x-identity' header")
+		return output, fmt.Errorf("unable to exctract required information from 'x-identity' header")
 	}
 
 	ephPbKey := tokens[0]
 
 	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestTolerance); err != nil {
-		return false, err
+		return output, err
 	}
 
 	if err = validateRequestSignature(r, ephPbKey); err != nil {
-		return false, err
+		return output, err
 	}
 
-	if err = validateAccessToken(cred[HeaderAccessToken], s.TrustedKey, ephPbKey); err != nil {
-		return false, err
+	tkn, err := validateAccessToken(cred[HeaderAccessToken], s.TrustedKey, ephPbKey)
+	if err != nil {
+		return output, err
 	}
 
-	return true, nil
+	output.AddUserID(tkn.UserId)
+	return output, nil
 }
 
 func ExtractAuthTokenPayload(token string) (*AccessTokenPayload, error) {
@@ -85,25 +87,26 @@ func ExtractAuthTokenPayload(token string) (*AccessTokenPayload, error) {
 	}
 	return &payload, nil
 }
-func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) error {
+
+func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) (*AccessTokenPayload, error) {
 	payload, err := ExtractAuthTokenPayload(token)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if strings.ToLower(ephKey) != strings.ToLower(payload.EphemeralKey) {
-		return errors.New("access Token ephemeral Key does not match the request key")
+		return nil, errors.New("access Token ephemeral Key does not match the request key")
 	}
 
 	if time.Now().Unix() > payload.Expiration {
-		return errors.New("expired token")
+		return nil, errors.New("expired token")
 	}
 
 	if _, err := jwt.Parse(token, getKeyJWT(trustedKey.X, trustedKey.Y)); err != nil {
-		return fmt.Errorf("error validating Access Token: %s", err.Error())
+		return nil, fmt.Errorf("error validating Access Token: %s", err.Error())
 	}
 
-	return nil
+	return payload, nil
 }
 
 func getKeyJWT(x *big.Int, y *big.Int) func(token *jwt.Token) (interface{}, error) {

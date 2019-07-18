@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	r2 "math/rand"
 	"net/http"
 	"os"
@@ -20,6 +21,8 @@ import (
 )
 
 var runIntegrationTests = os.Getenv("RUN_IT") == "true"
+
+const userID = "userID"
 
 func TestEphemeralKeys(t *testing.T) {
 	if !runIntegrationTests {
@@ -74,7 +77,7 @@ type thirdPartyTestCase struct {
 	tokenGen          func(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (string, error)
 	alternativePubKey *ecdsa.PublicKey
 	wait              func()
-	resultAssertion   func(ok bool, err error, t *testing.T)
+	resultAssertion   func(err error, t *testing.T)
 }
 
 var tpTable = []thirdPartyTestCase{
@@ -177,9 +180,12 @@ func TestThirdPartyKeys(t *testing.T) {
 				tc.wait()
 			}
 
-			ok, err := authHandler.ApproveRequest(r)
+			output, err := authHandler.ApproveRequest(r)
 
-			tc.resultAssertion(ok, err, t)
+			tc.resultAssertion(err, t)
+			if err == nil {
+				assert.Equal(t, userID, output.GetUserID())
+			}
 
 		})
 	}
@@ -270,9 +276,12 @@ func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
 				tc.wait()
 			}
 
-			ok, err := authHandler.ApproveRequest(r)
+			output, err := authHandler.ApproveRequest(r)
 
-			tc.resultAssertion(ok, err, t)
+			tc.resultAssertion(err, t)
+			if err == nil {
+				assert.Equal(t, userID, output.GetUserID())
+			}
 
 		})
 	}
@@ -284,7 +293,7 @@ func getAddressFromKey(pk *ecdsa.PublicKey) string {
 
 func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, duration time.Duration) (string, error) {
 	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
-		"user_id":       "userId",
+		"user_id":       userID,
 		"ephemeral_key": ephKey,
 		"version":       "1.0",
 		"exp":           time.Now().Add(time.Second * duration).Unix(),
@@ -295,7 +304,7 @@ func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, duration ti
 
 func missingDataToken(serverKey *ecdsa.PrivateKey, _ string, duration time.Duration) (string, error) {
 	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
-		"user_id": "userId",
+		"user_id": userID,
 		"version": "1.0",
 		"exp":     time.Now().Add(time.Second * duration).Unix(),
 	})
@@ -309,13 +318,12 @@ func wait(d time.Duration) func() {
 	}
 }
 
-func thirdPartyAssertOk(ok bool, err error, t *testing.T) {
-	assert.True(t, ok)
+func thirdPartyAssertOk(err error, t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func thirdPartyAssertError(message string) func(ok bool, err error, t *testing.T) {
-	return func(ok bool, err error, t *testing.T) {
+func thirdPartyAssertError(message string) func(err error, t *testing.T) {
+	return func(err error, t *testing.T) {
 		assert.NotNil(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), message))
 	}
@@ -323,21 +331,13 @@ func thirdPartyAssertError(message string) func(ok bool, err error, t *testing.T
 
 func checkRequest(t *testing.T, req *http.Request, authn auth.AuthenticationStrategy, authz auth.AuthorizationStrategy) {
 	authHandler, err := auth.NewAuthProvider(authn, authz)
-	if err != nil {
-		t.Fail()
-	}
+	require.NoError(t, err)
 
 	r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org/")
-	if err != nil {
-		t.Fail()
-	}
+	require.NoError(t, err)
 
-	validation, err := authHandler.ApproveRequest(r)
-	if err != nil {
-		t.Error(err.Error())
-	}
-
-	assert.True(t, validation)
+	_, err = authHandler.ApproveRequest(r)
+	require.NoError(t, err)
 }
 
 func buildPostRequest() *http.Request {

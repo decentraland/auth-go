@@ -11,7 +11,7 @@ import (
 )
 
 type AuthProvider interface {
-	ApproveRequest(r *AuthRequest) (bool, error)
+	ApproveRequest(r *AuthRequest) (Result, error)
 }
 
 type AuthRequest struct {
@@ -22,11 +22,11 @@ type AuthRequest struct {
 }
 
 type AuthenticationStrategy interface {
-	Authenticate(r *AuthRequest) (bool, error)
+	Authenticate(r *AuthRequest) (Result, error)
 }
 
 type AuthorizationStrategy interface {
-	Authorize(r *AuthRequest) (bool, error)
+	Authorize(r *AuthRequest) (Result, error)
 }
 
 type authProviderImpl struct {
@@ -73,21 +73,20 @@ func NewThirdPartyAuthProvider(config *ThirdPartyProviderConfig) (AuthProvider, 
 }
 
 // Authenticate and Authorize request based on the AuthorizationStrategy
-func (ah *authProviderImpl) ApproveRequest(r *AuthRequest) (bool, error) {
-	auth, err := ah.authn.Authenticate(r)
+func (ah *authProviderImpl) ApproveRequest(r *AuthRequest) (Result, error) {
+	output, err := ah.authn.Authenticate(r)
 	if err != nil {
-		return false, AuthenticationError{err.Error()}
-	}
-
-	if !auth {
-		return auth, nil
+		return nil, AuthenticationError{err.Error()}
 	}
 
 	aut, err := ah.authz.Authorize(r)
 	if err != nil {
-		return false, AuthorizationError{err.Error()}
+		return nil, AuthorizationError{err.Error()}
 	}
-	return aut, nil
+
+	output.AddAll(aut)
+
+	return output, nil
 }
 
 type AuthenticationError struct {
@@ -164,3 +163,29 @@ const (
 	HeaderCert          = "x-certificate"
 	HeaderCertSignature = "x-certificate-signature"
 )
+
+type Result map[string]interface{}
+
+func (r Result) GetUserID() string {
+	id, ok := r["userID"]
+	if !ok {
+		return ""
+	}
+	return id.(string)
+}
+
+func (r Result) AddUserID(userID string) {
+	r["userID"] = userID
+}
+
+func (r Result) AddAll(other Result) {
+	if other != nil {
+		for k, v := range other {
+			r[k] = v
+		}
+	}
+}
+
+func NewResultOutput() Result {
+	return make(map[string]interface{})
+}

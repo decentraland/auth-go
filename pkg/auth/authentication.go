@@ -23,8 +23,8 @@ const identityEthBasedPattern = "decentraland:(.*)\\/temp\\/(.*)"
 // Authenticate all requests
 type AllowAllAuthnStrategy struct{}
 
-func (s *AllowAllAuthnStrategy) Authenticate(r *AuthRequest) (bool, error) {
-	return true, nil
+func (s *AllowAllAuthnStrategy) Authenticate(r *AuthRequest) (Result, error) {
+	return NewResultOutput(), nil
 }
 
 type SelfGrantedStrategy struct {
@@ -32,42 +32,44 @@ type SelfGrantedStrategy struct {
 }
 
 // Validates the request credentials generated with the EphemeralKeys protocol
-func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (bool, error) {
+func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	cred := r.Credentials
 	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderCert, HeaderCertSignature, HeaderSignature, HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if err := validateCertificateType(cred, "self-granted"); err != nil {
-		return false, err
+		return nil, err
 	}
 
 	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], identityEthBasedPattern)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if len(tokens) != 2 {
-		return false, fmt.Errorf("unable to exctract required information from 'x-identity' header")
+		return nil, fmt.Errorf("unable to exctract required information from 'x-identity' header")
 	}
 
 	certAddress := tokens[0]
 	ephPbKey := tokens[1]
 
 	if err = checkRequestExpiration(cred["x-timestamp"], s.RequestTolerance); err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if err = validateRequestSignature(r, ephPbKey); err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if err = validateCertificate(cred[HeaderCert], cred["x-certificate-signature"], certAddress); err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	res := NewResultOutput()
+	res.AddUserID(certAddress)
+	return res, nil
 }
 
 func abs(v int64) int64 {

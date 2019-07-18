@@ -16,34 +16,38 @@ func NewInviteStrategy(dclApi string) *InviteStrategy {
 	return &InviteStrategy{dcl: d}
 }
 
-func (di *InviteStrategy) Authorize(r *AuthRequest) (bool, error) {
+func (di *InviteStrategy) Authorize(r *AuthRequest) (Result, error) {
+	output := NewResultOutput()
 	requiredCredentials := []string{HeaderIdentity}
 	if err := utils.ValidateRequiredCredentials(r.Credentials, requiredCredentials); err != nil {
-		return false, err
+		return output, err
 	}
 
 	tokens, err := utils.ParseTokensWithRegex(r.Credentials[HeaderIdentity], authzIdentityPattern)
 	if err != nil {
-		return false, err
+		return output, err
 	}
 
 	if len(tokens) != 2 {
-		return false, fmt.Errorf("unable to exctract required information from 'x-identity' header")
+		return output, fmt.Errorf("unable to exctract required information from 'x-identity' header")
 	}
 
 	address := tokens[0]
 
 	invited, err := di.dcl.checkInvite(address)
 	if err != nil {
-		return false, err
+		return output, err
 	}
 
-	return invited, nil
+	if !invited {
+		return output, fmt.Errorf("unauthorzed address: %s", address)
+	}
+	return output, nil
 }
 
 // Authorize all requests
 type AllowAllAuthzStrategy struct{}
 
-func (di *AllowAllAuthzStrategy) Authorize(r *AuthRequest) (bool, error) {
-	return true, nil
+func (di *AllowAllAuthzStrategy) Authorize(r *AuthRequest) (Result, error) {
+	return NewResultOutput(), nil
 }

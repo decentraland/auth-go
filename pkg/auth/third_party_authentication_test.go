@@ -20,7 +20,7 @@ func TestValidateAccessToken(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			k, _ := keys.ReadPublicKey(tc.entityKey)
 
-			err := validateAccessToken(tc.accessToken, k, tc.ephemeralKey)
+			_, err := validateAccessToken(tc.accessToken, k, tc.ephemeralKey)
 
 			tc.resultEvaluation(err, t)
 		})
