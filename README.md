@@ -139,7 +139,10 @@ trustedKey := keys.PemDecodePublicKey(pemEncodedPublicKeyString)
 authHandler, err := auth.NewThirdPartyAuthProvider(&auth.ThirdPartyProviderConfig{RequestLifeSpan: reqTTL, TrustedKey: trustedKey})
 
 req, _ := auth.MakeFromHttpRequest(httpRequest)
-ok, err := authHandler.ApproveRequest(req)
+result, err := authHandler.ApproveRequest(req)
+
+// Get UserID
+userID := result.GetUserID() // Extracted from the access token
 ```
 
 ##### Non HTTP Requests
@@ -162,7 +165,10 @@ msgCredentials[auth.HeaderTimestamp] = "150000000"
 
 msg := []byte("Your Message To Validate")
 req := &auth.AuthRequest{Credentials: msgCredentials, Content: msg}
-ok, err := authHandler.ApproveRequest(req)
+result, err := authHandler.ApproveRequest(req)
+
+// Get UserID
+userID := result.GetUserID() // Extracted from the access token
 ```
 
 #### Self Granted strategy
@@ -182,7 +188,10 @@ var httpRequest http.Response
 // httpRequest = ...
 serverPublicUrl := 'https://your.service.com'
 req, _ := auth.MakeFromHttpRequest(httpRequest, serverPublicUrl)
-ok, err := authHandler.ApproveRequest(req)
+result, err := authHandler.ApproveRequest(req)
+
+// Get UserID
+userID := result.GetUserID() // Eth Address, extracted from the Certificate
 ```
 
 ##### Non HTTP Requests
@@ -202,7 +211,11 @@ msgCredentials[auth.HeaderTimestamp] = "150000000"
 msg := []byte("Your Message To Validate")
 
 req, _ := auth.AuthRequest{Credentials: msgCredentials, Content: msg}
-ok, err := authHandler.ApproveRequest(req)
+result, err := authHandler.ApproveRequest(req)
+
+// Get UserID
+userID := result.GetUserID() // Eth Address, extracted from the Certificate
+
 ```
 
 #### Allow All
