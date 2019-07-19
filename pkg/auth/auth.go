@@ -76,12 +76,12 @@ func NewThirdPartyAuthProvider(config *ThirdPartyProviderConfig) (AuthProvider, 
 func (ah *authProviderImpl) ApproveRequest(r *AuthRequest) (Result, error) {
 	output, err := ah.authn.Authenticate(r)
 	if err != nil {
-		return nil, AuthenticationError{err.Error()}
+		return nil, err
 	}
 
 	aut, err := ah.authz.Authorize(r)
 	if err != nil {
-		return nil, AuthorizationError{err.Error()}
+		return nil, err
 	}
 
 	output.AddAll(aut)
@@ -188,4 +188,44 @@ func (r Result) AddAll(other Result) {
 
 func NewResultOutput() Result {
 	return make(map[string]interface{})
+}
+
+type MissingCredentialsError struct {
+	message string
+}
+
+func (e MissingCredentialsError) Error() string {
+	return e.message
+}
+
+type InvalidCredentialError struct {
+	message string
+}
+
+func (e InvalidCredentialError) Error() string {
+	return e.message
+}
+
+type ExpiredRequestError struct {
+	message string
+}
+
+func (e ExpiredRequestError) Error() string {
+	return e.message
+}
+
+type InvalidRequestSignatureError struct {
+	message string
+}
+
+func (e InvalidRequestSignatureError) Error() string {
+	return e.message
+}
+
+type InvalidCertificateError struct {
+	message string
+}
+
+func (e InvalidCertificateError) Error() string {
+	return e.message
 }

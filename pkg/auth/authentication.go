@@ -36,7 +36,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	cred := r.Credentials
 	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderCert, HeaderCertSignature, HeaderSignature, HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
-		return nil, err
+		return nil, MissingCredentialsError{err.Error()}
 	}
 
 	if err := validateCertificateType(cred, "self-granted"); err != nil {
@@ -49,7 +49,7 @@ func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	}
 
 	if len(tokens) != 2 {
-		return nil, fmt.Errorf("unable to exctract required information from 'x-identity' header")
+		return nil, InvalidCredentialError{"unable to extract required information from 'x-identity' header"}
 	}
 
 	certAddress := tokens[0]
@@ -83,11 +83,11 @@ func abs(v int64) int64 {
 func checkRequestExpiration(timestamp string, ttl int64) error {
 	t, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
-		return errors.New("invalid timestamp")
+		return InvalidCredentialError{"invalid timestamp"}
 	}
 	now := time.Now().Unix()
 	if abs(now-t) > ttl {
-		return errors.New("request expired")
+		return ExpiredRequestError{"request expired"}
 	}
 	return nil
 }
@@ -110,16 +110,16 @@ func validateRequestSignature(r *AuthRequest, pubKey string) error {
 func validateSignature(signature string, message []byte, pubKey string) error {
 	sigBytes, err := hexutil.Decode(utils.FormatHexString(signature))
 	if err != nil {
-		return err
+		return InvalidCredentialError{fmt.Sprintf("unable to decode signature: %s", err.Error())}
 	}
 
 	key, err := hexutil.Decode(utils.FormatHexString(pubKey))
 	if err != nil {
-		return err
+		return InvalidCredentialError{fmt.Sprintf("unable to decode publickey: %s", err.Error())}
 	}
 
 	if !secp256k1.VerifySignature(key, message, sigBytes) {
-		return errors.New("invalid Signature")
+		return InvalidRequestSignatureError{"invalid Signature"}
 	}
 	return nil
 }
@@ -151,7 +151,7 @@ func validateCertificateExpiration(certificate string) error {
 	}
 
 	if time.Now().UTC().After(*expDate) {
-		return errors.New("expired certificate")
+		return InvalidCertificateError{"expired certificate"}
 	}
 	return nil
 }
@@ -192,7 +192,7 @@ func validateCertificateSignature(cert string, signature string, address string)
 	derivedAddress := crypto.PubkeyToAddress(*publicKey)
 
 	if !(verified && bytes.Equal(derivedAddress.Bytes(), requestAddress)) {
-		return fmt.Errorf("invalid certificate. Signature does not match the certificate and the given public key")
+		return InvalidCertificateError{"invalid certificate. Signature does not match the certificate and the given public key"}
 	}
 	return nil
 }
@@ -235,7 +235,7 @@ func decodeCertificateSignature(signature string) ([]byte, error) {
 func validateCertificateType(cred map[string]string, credType string) error {
 	authType := cred["x-auth-type"]
 	if strings.ToLower(authType) != strings.ToLower(credType) {
-		return errors.New("invalid credential type")
+		return InvalidCredentialError{"invalid credential type"}
 	}
 	return nil
 }

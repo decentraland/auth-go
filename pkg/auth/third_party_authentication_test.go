@@ -1,26 +1,30 @@
 package auth
 
 import (
-	"github.com/decentraland/auth-go/pkg/keys"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+	"time"
 )
 
-const validJWTAccessToken = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJlcGhlbWVyYWxfa2V5IjoiMHgwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5IiwiZXhwIjo1MTUwMTcxOTk0LCJzZXJ2ZXJfaWQiOiJ0aGUgYXV0aCBzZXJ2ZXIiLCJ1c2VyX2lkIjoic2VydmljZVVzZXIxMjM0IiwidmVyc2lvbiI6IjEuMCJ9.at_2PBt-7gL4XCFQw7xTRZhoGnZCBJGFD0BTPdFPgCEWUxSVYKgoO56sMagKxfIRouapFzs277q7o0XsVKOZmw"
 const validEphKey = "0x0123456789012345678901234567890123456789"
-const validEntityPubKey = "0479b6379a4434e330496762f14d1bc5ca65d73fc79870413e6b2b7e85dd2af166cae53629125fb8a702b9f29747947e37a06ecc7a6ef63bd3f7fc2cba98b5d79f"
-
-const expiredToken = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJlcGhlbWVyYWxfa2V5IjoiMHgwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5IiwiZXhwIjoxNTUwMTc1MDY4LCJzZXJ2ZXJfaWQiOiJ0aGUgYXV0aCBzZXJ2ZXIiLCJ1c2VyX2lkIjoic2VydmljZVVzZXIxMjM0IiwidmVyc2lvbiI6IjEuMCJ9.K6f6ETxhci3YF7Kh1wNFIO_Aax41DfhbwSRHTkzt-cvsa8rdIDzg2BsQLNNAVGXgsKle_rxvrkXfF6q-0B37tA"
-const invalidTokenContent = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-const wrongPubKey = "0495e8db73b3bd23a67291d51d12a24255af57870e72a6e992e8df6bd0c892741a65e6908f991a4fe6a146e3f233dd97004609a202470cda8053c3509ec4abc106"
+const userID = "email|userID"
 
 func TestValidateAccessToken(t *testing.T) {
+	serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	pubKey := &serverKey.PublicKey
+
 	for _, tc := range validateAccessTokenTC {
 		t.Run(tc.name, func(t *testing.T) {
-			k, _ := keys.ReadPublicKey(tc.entityKey)
-
-			_, err := validateAccessToken(tc.accessToken, k, tc.ephemeralKey)
+			tkn, errTkn := tc.tokenGenerator(serverKey)
+			require.NoError(t, errTkn)
+			_, err := validateAccessToken(tkn, pubKey, tc.ephemeralKey)
 
 			tc.resultEvaluation(err, t)
 		})
@@ -41,56 +45,75 @@ func evaluateError(message string) func(err error, t *testing.T) {
 type accessTokenTestCase struct {
 	name             string
 	ephemeralKey     string
-	accessToken      string
-	entityKey        string
+	tokenGenerator   func(serverKey *ecdsa.PrivateKey) (string, error)
 	resultEvaluation func(err error, t *testing.T)
 }
 
 var validateAccessTokenTC = []accessTokenTestCase{
 	{
-		name:             "Valid Token",
-		ephemeralKey:     validEphKey,
-		accessToken:      validJWTAccessToken,
-		entityKey:        validEntityPubKey,
+		name:         "Valid Token",
+		ephemeralKey: validEphKey,
+		tokenGenerator: func(serverKey *ecdsa.PrivateKey) (s string, e error) {
+			return generateAccessToken(serverKey, validEphKey, userID, time.Now().Add(time.Second*10).Unix())
+		},
 		resultEvaluation: resultOk,
 	},
 	{
-		name:             "Expired Token",
-		ephemeralKey:     validEphKey,
-		accessToken:      expiredToken,
-		entityKey:        validEntityPubKey,
+		name:         "Expired Token",
+		ephemeralKey: validEphKey,
+		tokenGenerator: func(serverKey *ecdsa.PrivateKey) (s string, e error) {
+			return generateAccessToken(serverKey, validEphKey, userID, time.Now().Add(time.Second*-10).Unix())
+		},
 		resultEvaluation: evaluateError("expired token"),
 	},
 	{
-		name:             "Invalid format Token",
-		ephemeralKey:     validEphKey,
-		accessToken:      "notTheValidFormat",
-		entityKey:        validEntityPubKey,
-		resultEvaluation: evaluateError("invalid Access Token"),
+		name:         "Invalid format Token",
+		ephemeralKey: validEphKey,
+		tokenGenerator: func(_ *ecdsa.PrivateKey) (s string, e error) {
+			return "notTheValidFormat", nil
+		},
+		resultEvaluation: evaluateError("invalid token format"),
 	},
 	{
-		name:             "Invalid Token encoding",
-		ephemeralKey:     validEphKey,
-		accessToken:      "*.*.*",
-		entityKey:        validEntityPubKey,
-		resultEvaluation: evaluateError("decoding Access Token error"),
-	}, {
-		name:             "Invalid Token Payload",
-		ephemeralKey:     validEphKey,
-		accessToken:      invalidTokenContent,
-		entityKey:        validEntityPubKey,
-		resultEvaluation: evaluateError("invalid Access Token payload"),
-	}, {
-		name:             "Wrong Ephemeral Key",
-		ephemeralKey:     "000000",
-		accessToken:      validJWTAccessToken,
-		entityKey:        validEntityPubKey,
+		name:         "Invalid Token Payload",
+		ephemeralKey: validEphKey,
+		tokenGenerator: func(serverKey *ecdsa.PrivateKey) (s string, e error) {
+			claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+				"user_id": userID,
+			})
+			return claims.SignedString(serverKey)
+		},
+		resultEvaluation: evaluateError("access token payload missing required claims"),
+	},
+	{
+		name:         "Wrong Ephemeral Key",
+		ephemeralKey: validEphKey,
+		tokenGenerator: func(serverKey *ecdsa.PrivateKey) (s string, e error) {
+			return generateAccessToken(serverKey, "00000000", userID, time.Now().Add(time.Second*10).Unix())
+		},
 		resultEvaluation: evaluateError("access Token ephemeral Key does not match the request key"),
-	}, {
-		name:             "Invalid Entity Public Key",
-		ephemeralKey:     validEphKey,
-		accessToken:      validJWTAccessToken,
-		entityKey:        wrongPubKey,
+	},
+	{
+		name:         "Invalid Entity Public Key",
+		ephemeralKey: validEphKey,
+		tokenGenerator: func(_ *ecdsa.PrivateKey) (s string, e error) {
+			serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				return "", err
+			}
+			return generateAccessToken(serverKey, validEphKey, userID, time.Now().Add(time.Second*10).Unix())
+		},
 		resultEvaluation: evaluateError("error validating Access Token"),
 	},
+}
+
+func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, userID string, expiration int64) (string, error) {
+	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+		"user_id":       userID,
+		"ephemeral_key": ephKey,
+		"version":       "1.0",
+		"exp":           expiration,
+	})
+
+	return claims.SignedString(serverKey)
 }

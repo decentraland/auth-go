@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/decentraland/auth-go/internal/utils"
 	"github.com/dgrijalva/jwt-go"
@@ -36,7 +35,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	output := NewResultOutput()
 	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderAccessToken, HeaderSignature, HeaderAuthType}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
-		return output, err
+		return output, MissingCredentialsError{err.Error()}
 	}
 
 	if err := validateCertificateType(cred, "third-party"); err != nil {
@@ -49,7 +48,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	}
 
 	if len(tokens) != 1 {
-		return output, fmt.Errorf("unable to exctract required information from 'x-identity' header")
+		return output, InvalidCredentialError{"unable to extract required information from 'x-identity' header"}
 	}
 
 	ephPbKey := tokens[0]
@@ -71,42 +70,36 @@ func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	return output, nil
 }
 
-func ExtractAuthTokenPayload(token string) (*AccessTokenPayload, error) {
+func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) (*AccessTokenPayload, error) {
 	segments := strings.Split(token, ".")
 	if len(segments) != 3 {
-		return nil, errors.New("invalid Access Token")
+		return nil, NewInvalidAccessToken("invalid token format", TokenFormatError)
 	}
+
 	cStr, err := jwt.DecodeSegment(segments[1])
 	if err != nil {
-		return nil, fmt.Errorf("decoding Access Token error: %s", err.Error())
+		return nil, NewInvalidAccessToken(fmt.Sprintf("decoding Access Token error: %s", err.Error()), PayloadFormatError)
 	}
+
 	var payload AccessTokenPayload
 	err = json.Unmarshal([]byte(cStr), &payload)
 	if err != nil || !payload.isValid() {
-		return nil, errors.New("invalid Access Token payload")
-	}
-	return &payload, nil
-}
-
-func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) (*AccessTokenPayload, error) {
-	payload, err := ExtractAuthTokenPayload(token)
-	if err != nil {
-		return nil, err
+		return nil, NewInvalidAccessToken("access token payload missing required claims", MissingClaimsError)
 	}
 
 	if strings.ToLower(ephKey) != strings.ToLower(payload.EphemeralKey) {
-		return nil, errors.New("access Token ephemeral Key does not match the request key")
+		return nil, NewInvalidAccessToken("access Token ephemeral Key does not match the request key", EphKeyMatchError)
 	}
 
 	if time.Now().Unix() > payload.Expiration {
-		return nil, errors.New("expired token")
+		return nil, NewInvalidAccessToken("expired token", ExpiredTokenError)
 	}
 
 	if _, err := jwt.Parse(token, getKeyJWT(trustedKey.X, trustedKey.Y)); err != nil {
-		return nil, fmt.Errorf("error validating Access Token: %s", err.Error())
+		return nil, NewInvalidAccessToken(fmt.Sprintf("error validating Access Token: %s", err.Error()), InvalidTokenError)
 	}
 
-	return payload, nil
+	return &payload, nil
 }
 
 func getKeyJWT(x *big.Int, y *big.Int) func(token *jwt.Token) (interface{}, error) {
@@ -121,3 +114,27 @@ func getKeyJWT(x *big.Int, y *big.Int) func(token *jwt.Token) (interface{}, erro
 		}, nil
 	}
 }
+
+type InvalidAccessTokenError struct {
+	message   string
+	ErrorCode TokenValidationCode
+}
+
+func (e InvalidAccessTokenError) Error() string {
+	return e.message
+}
+
+func NewInvalidAccessToken(msg string, code TokenValidationCode) InvalidAccessTokenError {
+	return InvalidAccessTokenError{message: msg, ErrorCode: code}
+}
+
+type TokenValidationCode int
+
+const (
+	TokenFormatError   TokenValidationCode = 0
+	PayloadFormatError TokenValidationCode = 1
+	MissingClaimsError TokenValidationCode = 2
+	EphKeyMatchError   TokenValidationCode = 3
+	ExpiredTokenError  TokenValidationCode = 4
+	InvalidTokenError  TokenValidationCode = 5
+)

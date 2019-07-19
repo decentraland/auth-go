@@ -105,13 +105,14 @@ var tpTable = []thirdPartyTestCase{
 		},
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertError("decoding Access Token error"),
-	}, {
+	},
+	{
 		name:            "Invalid Data Access Token",
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        missingDataToken,
 		request:         buildPostRequest(),
-		resultAssertion: thirdPartyAssertError("invalid Access Token payload"),
+		resultAssertion: thirdPartyAssertError("access token payload missing required claims"),
 	}, {
 		name:              "Invalid Entity public Key",
 		accessTokenTTL:    60,
@@ -211,7 +212,7 @@ var noHttpRequestTable = []thirdPartyTestCase{
 		accessTokenTTL:  60,
 		requestTTL:      1000,
 		tokenGen:        missingDataToken,
-		resultAssertion: thirdPartyAssertError("invalid Access Token payload"),
+		resultAssertion: thirdPartyAssertError("access token payload missing required claims"),
 	}, {
 		name:              "Invalid Entity public Key",
 		accessTokenTTL:    60,

@@ -29,7 +29,7 @@ func (di *InviteStrategy) Authorize(r *AuthRequest) (Result, error) {
 	}
 
 	if len(tokens) != 2 {
-		return output, fmt.Errorf("unable to exctract required information from 'x-identity' header")
+		return output, MissingCredentialsError{"unable to exctract required information from 'x-identity' header"}
 	}
 
 	address := tokens[0]
@@ -40,7 +40,7 @@ func (di *InviteStrategy) Authorize(r *AuthRequest) (Result, error) {
 	}
 
 	if !invited {
-		return output, fmt.Errorf("unauthorzed address: %s", address)
+		return output, AuthorizationError{fmt.Sprintf("unauthorzed address: %s", address)}
 	}
 	return output, nil
 }
