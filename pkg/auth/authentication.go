@@ -5,11 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/signer/core"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/signer/core"
 
 	"github.com/decentraland/auth-go/internal/utils"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -20,21 +21,31 @@ import (
 const certificatePattern = ".*Date: (.*) Expires: (.*)"
 const identityEthBasedPattern = "decentraland:(.*)\\/temp\\/(.*)"
 
-// Authenticate all requests
+// AllowAllAuthnStrategy authenticates all requests
 type AllowAllAuthnStrategy struct{}
 
+// Authenticate all requests
 func (s *AllowAllAuthnStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	return NewResultOutput(), nil
 }
 
+// SelfGrantedStrategy authenticates the request by verifying the eth data in the credentials
 type SelfGrantedStrategy struct {
 	RequestTolerance int64
 }
 
-// Validates the request credentials generated with the EphemeralKeys protocol
+// Authenticate validates the request credentials generated with the EphemeralKeys protocol
 func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	cred := r.Credentials
-	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderCert, HeaderCertSignature, HeaderSignature, HeaderAuthType}
+	requiredCredentials := []string{
+		HeaderIdentity,
+		HeaderTimestamp,
+		HeaderCert,
+		HeaderCertSignature,
+		HeaderSignature,
+		HeaderAuthType,
+	}
+
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return nil, MissingCredentialsError{err.Error()}
 	}
@@ -49,7 +60,9 @@ func (s *SelfGrantedStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	}
 
 	if len(tokens) != 2 {
-		return nil, InvalidCredentialError{"unable to extract required information from 'x-identity' header"}
+		return nil, InvalidCredentialError{
+			"unable to extract required information from 'x-identity' header",
+		}
 	}
 
 	certAddress := tokens[0]
@@ -192,7 +205,9 @@ func validateCertificateSignature(cert string, signature string, address string)
 	derivedAddress := crypto.PubkeyToAddress(*publicKey)
 
 	if !(verified && bytes.Equal(derivedAddress.Bytes(), requestAddress)) {
-		return InvalidCertificateError{"invalid certificate. Signature does not match the certificate and the given public key"}
+		return InvalidCertificateError{
+			"invalid certificate. Signature does not match the certificate and the given public key",
+		}
 	}
 	return nil
 }

@@ -5,31 +5,35 @@ import (
 	"crypto/elliptic"
 	"encoding/json"
 	"fmt"
-	"github.com/decentraland/auth-go/internal/utils"
-	"github.com/dgrijalva/jwt-go"
 	"math/big"
 	"strings"
 	"time"
+
+	"github.com/decentraland/auth-go/internal/utils"
+	"github.com/dgrijalva/jwt-go"
 )
 
-const thirdPartyUserIdPattern = "public key derived address: (.*)"
+const thirdPartyUserIDPattern = "public key derived address: (.*)"
 
+// ThirdPartyStrategy strategy to validate JWT is signed by a trusted third party
 type ThirdPartyStrategy struct {
 	RequestTolerance int64
 	TrustedKey       *ecdsa.PublicKey
 }
 
+// AccessTokenPayload represents the information in the JWT payload
 type AccessTokenPayload struct {
 	EphemeralKey string `json:"ephemeral_key"`
 	Expiration   int64  `json:"exp"`
-	UserId       string `json:"user_id"`
+	UserID       string `json:"user_id"`
 	Version      string `json:"version"`
 }
 
 func (a AccessTokenPayload) isValid() bool {
-	return a.EphemeralKey != "" && a.Expiration > 0 && a.UserId != "" && a.Version != ""
+	return a.EphemeralKey != "" && a.Expiration > 0 && a.UserID != "" && a.Version != ""
 }
 
+// Authenticate check if the JWT is signed by a trusted third party
 func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	cred := r.Credentials
 	output := NewResultOutput()
@@ -42,7 +46,7 @@ func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 		return output, err
 	}
 
-	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], thirdPartyUserIdPattern)
+	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], thirdPartyUserIDPattern)
 	if err != nil {
 		return output, err
 	}
@@ -66,37 +70,37 @@ func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 		return output, err
 	}
 
-	output.AddUserID(tkn.UserId)
+	output.AddUserID(tkn.UserID)
 	return output, nil
 }
 
 func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey string) (*AccessTokenPayload, error) {
 	segments := strings.Split(token, ".")
 	if len(segments) != 3 {
-		return nil, NewInvalidAccessToken("invalid token format", TokenFormatError)
+		return nil, InvalidAccessTokenError{"invalid token format", TokenFormatError}
 	}
 
-	cStr, err := jwt.DecodeSegment(segments[1])
+	seg, err := jwt.DecodeSegment(segments[1])
 	if err != nil {
-		return nil, NewInvalidAccessToken(fmt.Sprintf("decoding Access Token error: %s", err.Error()), PayloadFormatError)
+		return nil, InvalidAccessTokenError{fmt.Sprintf("decoding Access Token error: %s", err.Error()), PayloadFormatError}
 	}
 
 	var payload AccessTokenPayload
-	err = json.Unmarshal([]byte(cStr), &payload)
+	err = json.Unmarshal(seg, &payload)
 	if err != nil || !payload.isValid() {
-		return nil, NewInvalidAccessToken("access token payload missing required claims", MissingClaimsError)
+		return nil, InvalidAccessTokenError{"access token payload missing required claims", MissingClaimsError}
 	}
 
 	if strings.ToLower(ephKey) != strings.ToLower(payload.EphemeralKey) {
-		return nil, NewInvalidAccessToken("access Token ephemeral Key does not match the request key", EphKeyMatchError)
+		return nil, InvalidAccessTokenError{"access Token ephemeral Key does not match the request key", EphKeyMatchError}
 	}
 
 	if time.Now().Unix() > payload.Expiration {
-		return nil, NewInvalidAccessToken("expired token", ExpiredTokenError)
+		return nil, InvalidAccessTokenError{"expired token", ExpiredTokenError}
 	}
 
 	if _, err := jwt.Parse(token, getKeyJWT(trustedKey.X, trustedKey.Y)); err != nil {
-		return nil, NewInvalidAccessToken(fmt.Sprintf("error validating Access Token: %s", err.Error()), InvalidTokenError)
+		return nil, InvalidAccessTokenError{fmt.Sprintf("error validating Access Token: %s", err.Error()), InvalidTokenError}
 	}
 
 	return &payload, nil
@@ -115,6 +119,7 @@ func getKeyJWT(x *big.Int, y *big.Int) func(token *jwt.Token) (interface{}, erro
 	}
 }
 
+// InvalidAccessTokenError is a validation error in the JWT
 type InvalidAccessTokenError struct {
 	message   string
 	ErrorCode TokenValidationCode
@@ -124,17 +129,20 @@ func (e InvalidAccessTokenError) Error() string {
 	return e.message
 }
 
-func NewInvalidAccessToken(msg string, code TokenValidationCode) InvalidAccessTokenError {
-	return InvalidAccessTokenError{message: msg, ErrorCode: code}
-}
-
+// TokenValidationCode JWT error code
 type TokenValidationCode int
 
 const (
-	TokenFormatError   TokenValidationCode = 0
+	// TokenFormatError JWT is malformed
+	TokenFormatError TokenValidationCode = 0
+	// PayloadFormatError JWT payload section is invalid
 	PayloadFormatError TokenValidationCode = 1
+	// MissingClaimsError JWT payload is missing a required element
 	MissingClaimsError TokenValidationCode = 2
-	EphKeyMatchError   TokenValidationCode = 3
-	ExpiredTokenError  TokenValidationCode = 4
-	InvalidTokenError  TokenValidationCode = 5
+	// EphKeyMatchError JWT ephKey do not match the key used to sign the request
+	EphKeyMatchError TokenValidationCode = 3
+	// ExpiredTokenError JWT expired
+	ExpiredTokenError TokenValidationCode = 4
+	// InvalidTokenError JWT is invalid
+	InvalidTokenError TokenValidationCode = 5
 )

@@ -4,12 +4,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const validEphKey = "0x0123456789012345678901234567890123456789"
@@ -21,6 +22,7 @@ func TestValidateAccessToken(t *testing.T) {
 	pubKey := &serverKey.PublicKey
 
 	for _, tc := range validateAccessTokenTC {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			tkn, errTkn := tc.tokenGenerator(serverKey)
 			require.NoError(t, errTkn)
@@ -49,7 +51,7 @@ type accessTokenTestCase struct {
 	resultEvaluation func(err error, t *testing.T)
 }
 
-var validateAccessTokenTC = []accessTokenTestCase{
+var validateAccessTokenTC = []accessTokenTestCase{ //nolint
 	{
 		name:         "Valid Token",
 		ephemeralKey: validEphKey,
@@ -107,7 +109,7 @@ var validateAccessTokenTC = []accessTokenTestCase{
 	},
 }
 
-func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, userID string, expiration int64) (string, error) {
+func generateAccessToken(serverKey *ecdsa.PrivateKey, ephKey string, userID string, expiration int64) (string, error) { //nolint
 	claims := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
 		"user_id":       userID,
 		"ephemeral_key": ephKey,

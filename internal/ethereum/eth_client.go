@@ -15,21 +15,21 @@ type EthClient interface {
 	GetDefaultAccount() (string, error)
 }
 
-type EthClientImpl struct {
+type ethClientImpl struct {
 	client *rpc.Client
 }
 
-// NewEthClient creates a new Eth clien, if it fails to connect to the external resource, it will retrieve an error
+// NewEthClient creates a new ETH client, if it fails to connect to the external resource, it will retrieve an error
 func NewEthClient(location string) (EthClient, error) {
 	c, err := rpc.Dial(location)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Unable to connect to Eth node: %s", err.Error()))
+		return nil, fmt.Errorf("unable to connect to ETH node: %s", err.Error())
 	}
-	return &EthClientImpl{client: c}, nil
+	return &ethClientImpl{client: c}, nil
 }
 
 // NetVersion retrieves the current network id.
-func (c *EthClientImpl) NetVersion() (string, error) {
+func (c *ethClientImpl) NetVersion() (string, error) {
 	var r string
 	if err := c.client.Call(&r, "net_version", []interface{}{}); err != nil {
 		return "", err
@@ -37,8 +37,8 @@ func (c *EthClientImpl) NetVersion() (string, error) {
 	return r, nil
 }
 
-// Returns a list of addresses owned by client.
-func (c *EthClientImpl) ListAccounts() ([]string, error) {
+// ListAccounts returns a list of addresses owned by client.
+func (c *ethClientImpl) ListAccounts() ([]string, error) {
 	var r []string
 	if err := c.client.Call(&r, "eth_accounts", []interface{}{}); err != nil {
 		return nil, err
@@ -46,8 +46,8 @@ func (c *EthClientImpl) ListAccounts() ([]string, error) {
 	return r, nil
 }
 
-// Signs the message.
-func (c *EthClientImpl) Sign(message string, address string, pass string) (string, error) {
+// Sign signs the message.
+func (c *ethClientImpl) Sign(message string, address string, pass string) (string, error) {
 	var r string
 	if err := c.client.Call(&r, "personal_sign", message, address, pass); err != nil {
 		return "", err
@@ -56,13 +56,13 @@ func (c *EthClientImpl) Sign(message string, address string, pass string) (strin
 }
 
 // GetDefaultAccount gets the default account (first on the list) to generate the Ephemeral keys
-func (c *EthClientImpl) GetDefaultAccount() (string, error) {
+func (c *ethClientImpl) GetDefaultAccount() (string, error) {
 	accounts, err := c.ListAccounts()
 	if err != nil {
 		return "", err
 	}
 	if len(accounts) < 1 {
-		return "", errors.New("No Account found")
+		return "", errors.New("no account found")
 	}
 	return accounts[0], nil
 }

@@ -4,27 +4,32 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
-	"github.com/decentraland/auth-go/pkg/commons"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/decentraland/auth-go/pkg/commons"
 )
 
-type AuthProvider interface {
+// AuthProvider auth provider contract
+type AuthProvider interface { //nolint
 	ApproveRequest(r *AuthRequest) (Result, error)
 }
 
-type AuthRequest struct {
+// AuthRequest request to validate
+type AuthRequest struct { //nolint
 	Credentials map[string]string
 	Content     []byte
 	Method      string
 	URL         string
 }
 
+// AuthenticationStrategy authentication contract
 type AuthenticationStrategy interface {
 	Authenticate(r *AuthRequest) (Result, error)
 }
 
+// AuthorizationStrategy  authorization contract
 type AuthorizationStrategy interface {
 	Authorize(r *AuthRequest) (Result, error)
 }
@@ -34,11 +39,13 @@ type authProviderImpl struct {
 	authz AuthorizationStrategy
 }
 
+// ProviderConfig AuthProvider configuration
 type ProviderConfig struct {
 	Authn AuthenticationStrategy
 	Authz AuthorizationStrategy
 }
 
+// NewAuthProvider retrieves a new AuthProvider
 func NewAuthProvider(authn AuthenticationStrategy, authz AuthorizationStrategy) (AuthProvider, error) {
 	if authn == nil && authz == nil {
 		return nil, errors.New("missing required strategy")
@@ -49,6 +56,7 @@ func NewAuthProvider(authn AuthenticationStrategy, authz AuthorizationStrategy) 
 	}, nil
 }
 
+// ThirdPartyProviderConfig auth for third party signed tokens
 type ThirdPartyProviderConfig struct {
 	Authn           AuthenticationStrategy
 	Authz           AuthorizationStrategy
@@ -56,6 +64,7 @@ type ThirdPartyProviderConfig struct {
 	TrustedKey      *ecdsa.PublicKey
 }
 
+//NewThirdPartyAuthProvider retrieves a new ThirdPartyProviderConfig
 func NewThirdPartyAuthProvider(config *ThirdPartyProviderConfig) (AuthProvider, error) {
 	authn := config.Authn
 	if authn == nil {
@@ -72,7 +81,7 @@ func NewThirdPartyAuthProvider(config *ThirdPartyProviderConfig) (AuthProvider, 
 	return NewAuthProvider(authn, authz)
 }
 
-// Authenticate and Authorize request based on the AuthorizationStrategy
+// ApproveRequest authenticates and authorizes request based on the AuthorizationStrategy
 func (ah *authProviderImpl) ApproveRequest(r *AuthRequest) (Result, error) {
 	output, err := ah.authn.Authenticate(r)
 	if err != nil {
@@ -89,9 +98,12 @@ func (ah *authProviderImpl) ApproveRequest(r *AuthRequest) (Result, error) {
 	return output, nil
 }
 
+// AuthenticationError fail to authenticate request
 type AuthenticationError struct {
 	cause string
 }
+
+// AuthorizationError fail to authorize request
 type AuthorizationError struct {
 	cause string
 }
@@ -104,7 +116,7 @@ func (e AuthorizationError) Error() string {
 	return e.cause
 }
 
-// Retrieves a SHA256 checksum of teh request content
+// Hash retrieves a SHA256 checksum of the request content
 func (r *AuthRequest) Hash() ([]byte, error) {
 	method := r.Method
 	url := r.URL
@@ -129,8 +141,8 @@ func (r *AuthRequest) Hash() ([]byte, error) {
 	return result[:], nil
 }
 
-// Generate a AuthRequest from a http.Request
-func MakeFromHttpRequest(r *http.Request, publicBaseUrl string) (*AuthRequest, error) {
+// MakeFromHTTPRequest generates a AuthRequest from a http.Request
+func MakeFromHTTPRequest(r *http.Request, publicBaseURL string) (*AuthRequest, error) {
 	credentials := make(map[string]string)
 	for key, value := range r.Header {
 		credentials[strings.ToLower(key)] = value[0]
@@ -150,22 +162,31 @@ func MakeFromHttpRequest(r *http.Request, publicBaseUrl string) (*AuthRequest, e
 		Credentials: credentials,
 		Content:     content,
 		Method:      r.Method,
-		URL:         buildUrl(publicBaseUrl, path),
+		URL:         buildURL(publicBaseURL, path),
 	}, nil
 }
 
 const (
-	HeaderIdentity      = "x-identity"
-	HeaderTimestamp     = "x-timestamp"
-	HeaderAccessToken   = "x-access-token"
-	HeaderSignature     = "x-signature"
-	HeaderAuthType      = "x-auth-type"
-	HeaderCert          = "x-certificate"
+	// HeaderIdentity x-identity credential
+	HeaderIdentity = "x-identity"
+	// HeaderTimestamp x-timestamp credential
+	HeaderTimestamp = "x-timestamp"
+	// HeaderAccessToken x-access-token credential
+	HeaderAccessToken = "x-access-token"
+	// HeaderSignature x-signature credential
+	HeaderSignature = "x-signature"
+	// HeaderAuthType x-auth-type credential
+	HeaderAuthType = "x-auth-type"
+	// HeaderCert x-certificate credential
+	HeaderCert = "x-certificate"
+	// HeaderCertSignature x-certificate-signature credential
 	HeaderCertSignature = "x-certificate-signature"
 )
 
+// Result auth process output
 type Result map[string]interface{}
 
+// GetUserID reads userID from result, if missing retrieves ""
 func (r Result) GetUserID() string {
 	id, ok := r["userID"]
 	if !ok {
@@ -174,10 +195,12 @@ func (r Result) GetUserID() string {
 	return id.(string)
 }
 
+// AddUserID adds userID key
 func (r Result) AddUserID(userID string) {
 	r["userID"] = userID
 }
 
+// AddAll adds all elements from one result to this instance
 func (r Result) AddAll(other Result) {
 	if other != nil {
 		for k, v := range other {
@@ -186,10 +209,12 @@ func (r Result) AddAll(other Result) {
 	}
 }
 
+// NewResultOutput retrieves new auth.Result instance
 func NewResultOutput() Result {
 	return make(map[string]interface{})
 }
 
+// MissingCredentialsError a required credential si missing from request
 type MissingCredentialsError struct {
 	message string
 }
@@ -198,6 +223,7 @@ func (e MissingCredentialsError) Error() string {
 	return e.message
 }
 
+// InvalidCredentialError one of the credentials in the request is invalid
 type InvalidCredentialError struct {
 	message string
 }
@@ -206,6 +232,7 @@ func (e InvalidCredentialError) Error() string {
 	return e.message
 }
 
+// ExpiredRequestError request has expired
 type ExpiredRequestError struct {
 	message string
 }
@@ -214,6 +241,7 @@ func (e ExpiredRequestError) Error() string {
 	return e.message
 }
 
+// InvalidRequestSignatureError request signature is invalid
 type InvalidRequestSignatureError struct {
 	message string
 }
@@ -222,6 +250,7 @@ func (e InvalidRequestSignatureError) Error() string {
 	return e.message
 }
 
+// InvalidCertificateError certificate is invalid
 type InvalidCertificateError struct {
 	message string
 }

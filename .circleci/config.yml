@@ -1,4 +1,5 @@
-version: 2
+version: 2.1
+
 jobs:
   build:
     docker:
@@ -9,3 +10,8 @@ jobs:
     steps:
       - checkout
       - run: make test
+
+workflows:
+  build_deploy:
+    jobs:
+      - build

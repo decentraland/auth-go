@@ -4,6 +4,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	r2 "math/rand"
+	"net/http"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/decentraland/auth-go/internal/ethereum"
 	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/decentraland/auth-go/pkg/ephemeral"
@@ -12,15 +19,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	r2 "math/rand"
-	"net/http"
-	"os"
-	"strings"
-	"testing"
-	"time"
 )
 
-var runIntegrationTests = os.Getenv("RUN_IT") == "true"
+var runIntegrationTests = os.Getenv("RUN_IT") == "true" //nolint
 
 const userID = "userID"
 
@@ -55,9 +56,9 @@ func TestEphemeralKeys(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	dclApi := os.Getenv("DCL_API")
+	dclAPI := os.Getenv("DCL_API")
 
-	checkRequest(t, req, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclApi))
+	checkRequest(t, req, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclAPI))
 
 	get := buildGetRequest()
 
@@ -65,12 +66,11 @@ func TestEphemeralKeys(t *testing.T) {
 		t.Error(err.Error())
 	}
 
-	checkRequest(t, get, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclApi))
+	checkRequest(t, get, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclAPI))
 }
 
 type thirdPartyTestCase struct {
 	name              string
-	credentialTTL     int
 	accessTokenTTL    time.Duration
 	requestTTL        int64
 	request           *http.Request
@@ -80,7 +80,7 @@ type thirdPartyTestCase struct {
 	resultAssertion   func(err error, t *testing.T)
 }
 
-var tpTable = []thirdPartyTestCase{
+var tpTable = []thirdPartyTestCase{ //nolint
 	{
 		name:            "Valid Credentials - POST",
 		accessTokenTTL:  60,
@@ -128,7 +128,7 @@ var tpTable = []thirdPartyTestCase{
 		tokenGen:        generateAccessToken,
 		request:         buildPostRequest(),
 		resultAssertion: thirdPartyAssertError("request expired"),
-		wait:            wait(3 * time.Second),
+		wait:            wait(4 * time.Second),
 	},
 	{
 		name:            "Expired Access Token",
@@ -143,6 +143,7 @@ var tpTable = []thirdPartyTestCase{
 
 func TestThirdPartyKeys(t *testing.T) {
 	for _, tc := range tpTable {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
@@ -158,8 +159,8 @@ func TestThirdPartyKeys(t *testing.T) {
 				t.Error(err.Error())
 			}
 			req := tc.request
-			if err := ephemeralKey.AddRequestHeaders(req, accessToken); err != nil {
-				t.Error(err.Error())
+			if addErr := ephemeralKey.AddRequestHeaders(req, accessToken); addErr != nil {
+				t.Error(addErr.Error())
 			}
 
 			key := &serverKey.PublicKey
@@ -167,12 +168,14 @@ func TestThirdPartyKeys(t *testing.T) {
 				key = tc.alternativePubKey
 			}
 
-			authHandler, err := auth.NewThirdPartyAuthProvider(&auth.ThirdPartyProviderConfig{RequestLifeSpan: tc.requestTTL, TrustedKey: key})
+			authHandler, err := auth.NewThirdPartyAuthProvider(
+				&auth.ThirdPartyProviderConfig{RequestLifeSpan: tc.requestTTL, TrustedKey: key})
+
 			if err != nil {
 				t.Fail()
 			}
 
-			r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org/")
+			r, err := auth.MakeFromHTTPRequest(req, "http://market.decentraland.org/")
 			if err != nil {
 				t.Fail()
 			}
@@ -192,7 +195,7 @@ func TestThirdPartyKeys(t *testing.T) {
 	}
 }
 
-var noHttpRequestTable = []thirdPartyTestCase{
+var noHttpRequestTable = []thirdPartyTestCase{ //nolint
 	{
 		name:            "Valid Credentials",
 		accessTokenTTL:  60,
@@ -240,6 +243,7 @@ var noHttpRequestTable = []thirdPartyTestCase{
 
 func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
 	for _, tc := range noHttpRequestTable {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			serverKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			if err != nil {
@@ -266,7 +270,8 @@ func TestThirdPartyKeysNoHTTPRequest(t *testing.T) {
 			if tc.alternativePubKey != nil {
 				key = tc.alternativePubKey
 			}
-			authHandler, err := auth.NewThirdPartyAuthProvider(&auth.ThirdPartyProviderConfig{RequestLifeSpan: tc.requestTTL, TrustedKey: key})
+			authHandler, err := auth.NewThirdPartyAuthProvider(
+				&auth.ThirdPartyProviderConfig{RequestLifeSpan: tc.requestTTL, TrustedKey: key})
 			if err != nil {
 				t.Fail()
 			}
@@ -330,14 +335,14 @@ func thirdPartyAssertError(message string) func(err error, t *testing.T) {
 	}
 }
 
-func checkRequest(t *testing.T, req *http.Request, authn auth.AuthenticationStrategy, authz auth.AuthorizationStrategy) {
+func checkRequest(t *testing.T, r *http.Request, authn auth.AuthenticationStrategy, authz auth.AuthorizationStrategy) {
 	authHandler, err := auth.NewAuthProvider(authn, authz)
 	require.NoError(t, err)
 
-	r, err := auth.MakeFromHttpRequest(req, "http://market.decentraland.org/")
+	req, err := auth.MakeFromHTTPRequest(r, "http://market.decentraland.org/")
 	require.NoError(t, err)
 
-	_, err = authHandler.ApproveRequest(r)
+	_, err = authHandler.ApproveRequest(req)
 	require.NoError(t, err)
 }
 

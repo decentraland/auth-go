@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Validates all required credentials are present
+// ValidateRequiredCredentials validates all required credentials are present
 func ValidateRequiredCredentials(m map[string]string, keys []string) error {
 	var missing []string
 	for _, key := range keys {
@@ -20,7 +20,7 @@ func ValidateRequiredCredentials(m map[string]string, keys []string) error {
 	return nil
 }
 
-// Adds the Ox prefix to the string if not present
+// FormatHexString adds the Ox prefix to the string if not present
 func FormatHexString(toPad string) string {
 	if strings.HasPrefix(toPad, "0x") {
 		return toPad
@@ -28,7 +28,7 @@ func FormatHexString(toPad string) string {
 	return "0x" + toPad
 }
 
-// Removes the Ox prefix from the string if present
+// RemoveHexPrefix removes the Ox prefix from the string if present
 func RemoveHexPrefix(value string) string {
 	if !strings.HasPrefix(value, "0x") {
 		return value
@@ -36,7 +36,8 @@ func RemoveHexPrefix(value string) string {
 	return value[2:]
 }
 
-// Retrieves the Address that generated the certificate  and the public ephemeral key from the identity header
+// ParseTokensWithRegex retrieves the Address that generated the certificate
+// and the public ephemeral key from the identity header
 func ParseTokensWithRegex(idHeader string, pattern string) ([]string, error) {
 	idRegex := *regexp.MustCompile(pattern)
 	if !idRegex.MatchString(idHeader) {

@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
-// Reads the request content into a byte array
+// ReadRequestBody reads the request content into a byte array
 func ReadRequestBody(r *http.Request) ([]byte, error) {
 	if r.Body == nil {
 		return nil, nil
@@ -27,8 +28,9 @@ func ReadRequestBody(r *http.Request) ([]byte, error) {
 	return content, nil
 }
 
-// Retrieves a sha256 from the following message: request method + request url + timestamp + request body
-func GenerateHttpRequestHash(r *http.Request, timestamp int64) ([]byte, error) {
+// GenerateHTTPRequestHash retrieves a sha256 from the following message:
+// request method + request url + timestamp + request body
+func GenerateHTTPRequestHash(r *http.Request, timestamp int64) ([]byte, error) {
 	method := r.Method
 
 	u, err := url.QueryUnescape(r.URL.String())
@@ -51,7 +53,7 @@ func GenerateHttpRequestHash(r *http.Request, timestamp int64) ([]byte, error) {
 	return result[:], nil
 }
 
-// Retrieves a sha256 from the following message: timestamp + message
+// GenerateMessageHash retrieves a sha256 from the following message: timestamp + message
 func GenerateMessageHash(message []byte, timestamp int64) ([]byte, error) {
 	toSign := []byte(strconv.FormatInt(timestamp, 10))
 	toSign = append(toSign, message...)
@@ -60,6 +62,7 @@ func GenerateMessageHash(message []byte, timestamp int64) ([]byte, error) {
 	return result[:], nil
 }
 
+// SignMessage sign msg using privKey
 func SignMessage(msg []byte, privKey *ecdsa.PrivateKey) ([]byte, error) {
 	signature, err := secp256k1.Sign(msg, crypto.FromECDSA(privKey))
 	if err != nil {

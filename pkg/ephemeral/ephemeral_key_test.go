@@ -3,17 +3,18 @@ package ephemeral
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/ethereum/go-ethereum/crypto"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/decentraland/auth-go/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
-const expectedSignature = "0x2de0bfbf063cd4c9f4565fc68bb6acadf9d06e278bfd876eefb31e62a9071adc17dab32a3bd4695bb8319e99319a3a26d366880d03b5db0a43ff584f6ee27ac81b"
+const expectedSignature = "0x2de0bfbf063cd4c9f4565fc68bb6acadf9d06e278bfd876eefb31e62a9071adc17dab32a3bd4695bb8319e99319a3a26d366880d03b5db0a43ff584f6ee27ac81b" //nolint
 const testAddress = "0x4256ab370067377cf2c82f3379c98a3817a0c6d7"
 const ttlInMinutes = 10
 

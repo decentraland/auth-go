@@ -1,14 +1,15 @@
 package auth
 
 import (
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-const notInvitedIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749852/temp/03d757ee240348ec3d818d3f1d3f5902fcfecf3391fa6bc34a5c82863348db0581"
-const validIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749858/temp/03d757ee240348ec3d818d3f1d3f5902fcfecf3391fa6bc34a5c82863348db0581"
+const notInvitedIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749852/temp/03d757ee240348ec3d818d3f1d3f5902fcfecf3391fa6bc34a5c82863348db0581" //nolint
+const validIdentity = "decentraland:0x3e0857bbecd533d600dd17ab78e1ca5cf0749858/temp/03d757ee240348ec3d818d3f1d3f5902fcfecf3391fa6bc34a5c82863348db0581"      //nolint
 
 type authorizeRequestData struct {
 	name            string
@@ -24,7 +25,7 @@ func assertOkResult(t *testing.T, err error) {
 	assert.Nil(t, err)
 }
 
-var authorizeRequestTc = []authorizeRequestData{
+var authorizeRequestTc = []authorizeRequestData{ //nolint
 	{
 		name:            "Authorized AuthRequest",
 		requestHeaders:  map[string]string{HeaderIdentity: validIdentity},
@@ -51,12 +52,13 @@ func TestAuthorizeRequest(t *testing.T) {
 	dcl := &inMemoryDcl{storage: initStorage()}
 	inviteStrategy := &InviteStrategy{dcl: dcl}
 	for _, tc := range authorizeRequestTc {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			req, err := buildRequest(tc.requestHeaders)
 			if err != nil {
 				t.Fail()
 			}
-			r, err := MakeFromHttpRequest(req, "http://market.decentraland.org")
+			r, err := MakeFromHTTPRequest(req, "http://market.decentraland.org")
 			if err != nil {
 				t.Fail()
 			}
@@ -84,7 +86,9 @@ func initStorage() map[string]bool {
 func buildRequest(headers map[string]string) (*http.Request, error) {
 	text := "{\"param1\":\"data1\",\"param2\":\"data2\"}"
 
-	req, err := http.NewRequest("POST", "http://market.decentraland.org/api/v1/marketplace", strings.NewReader(text))
+	req, err := http.NewRequest(
+		"POST", "http://market.decentraland.org/api/v1/marketplace", strings.NewReader(text))
+
 	if err != nil {
 		return nil, err
 	}

@@ -2,20 +2,24 @@ package auth
 
 import (
 	"fmt"
+
 	"github.com/decentraland/auth-go/internal/utils"
 )
 
 const authzIdentityPattern = "decentraland:(.*)\\/temp\\/(.*)"
 
+// InviteStrategy authorize requests if the eth address was invited
 type InviteStrategy struct {
 	dcl decentraland
 }
 
-func NewInviteStrategy(dclApi string) *InviteStrategy {
-	d := newDclClient(dclApi)
+// NewInviteStrategy retrieves a new Authorization strategy
+func NewInviteStrategy(dclAPI string) *InviteStrategy {
+	d := newDclClient(dclAPI)
 	return &InviteStrategy{dcl: d}
 }
 
+// Authorize checks if the eth address was invited
 func (di *InviteStrategy) Authorize(r *AuthRequest) (Result, error) {
 	output := NewResultOutput()
 	requiredCredentials := []string{HeaderIdentity}
@@ -45,9 +49,10 @@ func (di *InviteStrategy) Authorize(r *AuthRequest) (Result, error) {
 	return output, nil
 }
 
-// Authorize all requests
+// AllowAllAuthzStrategy  authorize all requests
 type AllowAllAuthzStrategy struct{}
 
+// Authorize all requests
 func (di *AllowAllAuthzStrategy) Authorize(r *AuthRequest) (Result, error) {
 	return NewResultOutput(), nil
 }

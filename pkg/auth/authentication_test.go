@@ -3,21 +3,24 @@ package auth
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/decentraland/auth-go/pkg/ephemeral"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
-const wrongSignature = "1c9d60a1883ecad4935ef8fabeaba74c0841f8aa0d981247fc25c92611ac645f2bf1b181406dde06993ed3f57f2d935e1a0ac95a68ec546f8d30e9b2e616dd97"
-const expiredCertificate = "0x446563656e7472616c616e64204163636573732041757468204b65793a203034333333323766373364306633663837313731393039393535643837613162393339333736333430366266356438663139343032353665653064363265623561336139633332303638366262653266656637383366666537356239653635623735616232653161616134383431663134656637653866613663666136663035356120546f6b656e3a206d61696e6e65743a2f2f3078313233343520446174653a20323031302d31312d32395431353a33373a30325a20457870697265733a20323031302d31312d32395431353a34373a30325a"
+const wrongSignature = "1c9d60a1883ecad4935ef8fabeaba74c0841f8aa0d981247fc25c92611ac645f2bf1b181406dde06993ed3f57f2d935e1a0ac95a68ec546f8d30e9b2e616dd97"                                                                                                                                                                                                                                                                                                                                                                           //nolint
+const expiredCertificate = "0x446563656e7472616c616e64204163636573732041757468204b65793a203034333333323766373364306633663837313731393039393535643837613162393339333736333430366266356438663139343032353665653064363265623561336139633332303638366262653266656637383366666537356239653635623735616232653161616134383431663134656637653866613663666136663035356120546f6b656e3a206d61696e6e65743a2f2f3078313233343520446174653a20323031302d31312d32395431353a33373a30325a20457870697265733a20323031302d31312d32395431353a34373a30325a" //nolint
+
+const basicRequestBody = "{\"param1\":\"data1\",\"param2\":\"data2\"}"
 
 type validateCredentialsData struct {
 	name            string
@@ -29,7 +32,8 @@ type validateCredentialsData struct {
 
 func assertErrorMessage(t *testing.T, err error, expectedMsg string) {
 	assert.NotNil(t, err)
-	assert.Equal(t, expectedMsg, err.Error(), fmt.Sprintf("Expected Message: '%s'. Got: '%s'", expectedMsg, err.Error()))
+	assert.Equal(t, expectedMsg, err.Error(),
+		fmt.Sprintf("Expected Message: '%s'. Got: '%s'", expectedMsg, err.Error()))
 }
 
 func assertResultOk(t *testing.T, err error, _ string) {
@@ -38,7 +42,7 @@ func assertResultOk(t *testing.T, err error, _ string) {
 	}
 }
 
-var validateCredentialsTc = []validateCredentialsData{
+var validateCredentialsTc = []validateCredentialsData{ //nolint
 	{
 		name:            "Valid Credentials",
 		tolerance:       1000,
@@ -128,14 +132,15 @@ func TestValidateCredentials(t *testing.T) {
 	mock := &ethClientMock{network: "1", key: key}
 
 	for _, tc := range validateCredentialsTc {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-
 			ephKey, err := ephemeral.GenerateEthEphemeralKey(accountInfo, mock, 1000)
 			require.NoError(t, err)
 
 			v := &SelfGrantedStrategy{RequestTolerance: tc.tolerance}
 
 			req, err := buildAuthRequest()
+			require.NoError(t, err)
 			err = ephKey.AddRequestHeaders(req)
 			require.NoError(t, err)
 
@@ -145,7 +150,7 @@ func TestValidateCredentials(t *testing.T) {
 				}
 			}
 
-			r, err := MakeFromHttpRequest(req, "http://market.decentraland.org")
+			r, err := MakeFromHTTPRequest(req, "http://market.decentraland.org")
 			if err != nil {
 				t.Fail()
 			}
@@ -187,13 +192,16 @@ func TestDecodeUrlPath(t *testing.T) {
 
 	v := &SelfGrantedStrategy{RequestTolerance: 1000}
 
-	text := "{\"param1\":\"data1\",\"param2\":\"data2\"}"
-	req, err := http.NewRequest("POST", "http://market.decentraland.org/api/v1/this will|be-encoded", strings.NewReader(text))
+	text := basicRequestBody
+	req, err := http.NewRequest(
+		"POST", "http://market.decentraland.org/api/v1/this will|be-encoded", strings.NewReader(text))
+
+	require.NoError(t, err)
 
 	err = ephKey.AddRequestHeaders(req)
 	require.NoError(t, err)
 
-	r, err := MakeFromHttpRequest(req, "http://market.decentraland.org")
+	r, err := MakeFromHTTPRequest(req, "http://market.decentraland.org")
 	require.NoError(t, err)
 
 	_, err = v.Authenticate(r)
@@ -201,9 +209,10 @@ func TestDecodeUrlPath(t *testing.T) {
 }
 
 func buildAuthRequest() (*http.Request, error) {
-	text := "{\"param1\":\"data1\",\"param2\":\"data2\"}"
+	text := basicRequestBody
 
-	return http.NewRequest("POST", "http://market.decentraland.org/api/v1/marketplace", strings.NewReader(text))
+	return http.NewRequest(
+		"POST", "http://market.decentraland.org/api/v1/marketplace", strings.NewReader(text))
 }
 
 type ethClientMock struct {

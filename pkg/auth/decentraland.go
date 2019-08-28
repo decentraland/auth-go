@@ -20,16 +20,16 @@ type data struct {
 }
 
 type dclClient struct {
-	dclApi string
+	dclAPI string
 }
 
-func newDclClient(dclApi string) *dclClient {
-	return &dclClient{dclApi: dclApi}
+func newDclClient(dclAPI string) *dclClient {
+	return &dclClient{dclAPI: dclAPI}
 }
 
 func (dcl *dclClient) checkInvite(address string) (bool, error) {
 	var resp validationResponse
-	err := doGet(buildUrl(dcl.dclApi, "/invites/%s/validate", address), &resp)
+	err := doGet(buildURL(dcl.dclAPI, "/invites/%s/validate", address), &resp)
 	if err != nil {
 		return false, err
 	}
@@ -37,9 +37,10 @@ func (dcl *dclClient) checkInvite(address string) (bool, error) {
 }
 
 func doGet(url string, response interface{}) error {
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) //nolint
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close() //nolint
 	return json.NewDecoder(resp.Body).Decode(response)
 }
