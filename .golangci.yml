@@ -19,4 +19,4 @@ issues:
 
 service:
   prepare:
-    - export CGO_ENABLED=1
+    - export CGO_ENABLED='0'
