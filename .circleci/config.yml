@@ -13,13 +13,11 @@ jobs:
     steps:
       - checkout
       - run: make test
-  linter:
-    jobs:
-      - tools/lint:
-          executor: circleci-golang
+  lintergo:
+    executor: circleci-golang
 
 workflows:
   build_deploy:
     jobs:
       - build
-      - linter
+      - lintergo
