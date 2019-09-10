@@ -16,3 +16,7 @@ linters:
 
 issues:
   exclude-use-default: false
+
+service:
+  prepare:
+    - export CGO_ENABLED=1
