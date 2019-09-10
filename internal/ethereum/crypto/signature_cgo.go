@@ -24,8 +24,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"fmt"
-	"github.com/decentraland/auth-go/internal/ethereum/secp256k1"
 	"math/big"
+
+	"github.com/decentraland/auth-go/internal/ethereum/secp256k1"
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.

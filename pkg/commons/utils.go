@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
-	"github.com/decentraland/auth-go/internal/ethereum/crypto"
-	"github.com/decentraland/auth-go/internal/ethereum/secp256k1"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/decentraland/auth-go/internal/ethereum/crypto"
+	"github.com/decentraland/auth-go/internal/ethereum/secp256k1"
 )
 
 // ReadRequestBody reads the request content into a byte array

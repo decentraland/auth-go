@@ -3,11 +3,12 @@ package ephemeral
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/decentraland/auth-go/internal/ethereum/crypto"
-	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/decentraland/auth-go/internal/ethereum/crypto"
+	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
 
 	"github.com/decentraland/auth-go/pkg/commons"
 

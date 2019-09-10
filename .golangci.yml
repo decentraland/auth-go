@@ -1,3 +1,7 @@
+run:
+  skip-dirs:
+    - internal/ethereum
+
 linters-settings:
   govet:
     check-shadowing: true

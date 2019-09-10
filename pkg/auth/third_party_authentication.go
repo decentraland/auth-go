@@ -5,12 +5,13 @@ import (
 	"crypto/elliptic"
 	"encoding/json"
 	"fmt"
-	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
-	"github.com/decentraland/auth-go/internal/ethereum/secp256k1"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
+	"github.com/decentraland/auth-go/internal/ethereum/secp256k1"
 
 	"github.com/decentraland/auth-go/internal/utils"
 	"github.com/dgrijalva/jwt-go"

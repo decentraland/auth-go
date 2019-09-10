@@ -41,3 +41,11 @@ func zeroBytes(bytes []byte) {
 		bytes[i] = 0
 	}
 }
+
+// FromECDSA exports a private key into a binary dump.
+func FromECDSA(priv *ecdsa.PrivateKey) []byte {
+	if priv == nil {
+		return nil
+	}
+	return PaddedBigBytes(priv.D, priv.Params().BitSize/8)
+}

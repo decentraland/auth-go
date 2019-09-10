@@ -4,8 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"github.com/decentraland/auth-go/internal/ethereum/crypto"
-	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
 	r2 "math/rand"
 	"net/http"
 	"os"
@@ -13,11 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/decentraland/auth-go/internal/ethereum/crypto"
+	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
+
 	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/decentraland/auth-go/pkg/ephemeral"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var runIntegrationTests = os.Getenv("RUN_IT") == "true" //nolint
@@ -288,17 +288,6 @@ func thirdPartyAssertError(message string) func(err error, t *testing.T) {
 		assert.NotNil(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), message))
 	}
-}
-
-func checkRequest(t *testing.T, r *http.Request, authn auth.AuthenticationStrategy, authz auth.AuthorizationStrategy) {
-	authHandler, err := auth.NewAuthProvider(authn, authz)
-	require.NoError(t, err)
-
-	req, err := auth.MakeFromHTTPRequest(r, "http://market.decentraland.org/")
-	require.NoError(t, err)
-
-	_, err = authHandler.ApproveRequest(req)
-	require.NoError(t, err)
 }
 
 func buildPostRequest() *http.Request {
