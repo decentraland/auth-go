@@ -258,3 +258,19 @@ type InvalidCertificateError struct {
 func (e InvalidCertificateError) Error() string {
 	return e.message
 }
+
+// AllowAllAuthzStrategy  authorize all requests
+type AllowAllAuthzStrategy struct{}
+
+// Authorize all requests
+func (di *AllowAllAuthzStrategy) Authorize(r *AuthRequest) (Result, error) {
+	return NewResultOutput(), nil
+}
+
+// AllowAllAuthnStrategy authenticates all requests
+type AllowAllAuthnStrategy struct{}
+
+// Authenticate all requests
+func (s *AllowAllAuthnStrategy) Authenticate(r *AuthRequest) (Result, error) {
+	return NewResultOutput(), nil
+}

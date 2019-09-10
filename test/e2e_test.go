@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"github.com/decentraland/auth-go/internal/ethereum/crypto"
+	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
 	r2 "math/rand"
 	"net/http"
 	"os"
@@ -11,12 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decentraland/auth-go/internal/ethereum"
 	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/decentraland/auth-go/pkg/ephemeral"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,50 +23,6 @@ import (
 var runIntegrationTests = os.Getenv("RUN_IT") == "true" //nolint
 
 const userID = "userID"
-
-func TestEphemeralKeys(t *testing.T) {
-	if !runIntegrationTests {
-		t.Skip("Skipping integration test. To run it set RUN_IT=true")
-	}
-
-	eth := os.Getenv("ETH_NODE")
-	pass := os.Getenv("PASSPHRASE")
-
-	c, err := ethereum.NewEthClient(eth)
-	if err != nil {
-		t.Error(err.Error())
-	}
-
-	acc, err := c.GetDefaultAccount()
-
-	if err != nil {
-		t.Error(err.Error())
-	}
-
-	accInfo := &ephemeral.EthAccountInfo{TokenAddress: "0x12345", Account: acc, Passphrase: pass}
-	ephemeralKey, err := ephemeral.GenerateEthEphemeralKey(accInfo, c, 10)
-
-	assert.Nil(t, err)
-	assert.NotNil(t, ephemeralKey)
-
-	req := buildPostRequest()
-
-	if err := ephemeralKey.AddRequestHeaders(req); err != nil {
-		t.Error(err.Error())
-	}
-
-	dclAPI := os.Getenv("DCL_API")
-
-	checkRequest(t, req, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclAPI))
-
-	get := buildGetRequest()
-
-	if err := ephemeralKey.AddRequestHeaders(get); err != nil {
-		t.Error(err.Error())
-	}
-
-	checkRequest(t, get, &auth.SelfGrantedStrategy{RequestTolerance: 10}, auth.NewInviteStrategy(dclAPI))
-}
 
 type thirdPartyTestCase struct {
 	name              string

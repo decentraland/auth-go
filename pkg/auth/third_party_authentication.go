@@ -5,7 +5,10 @@ import (
 	"crypto/elliptic"
 	"encoding/json"
 	"fmt"
+	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
+	"github.com/decentraland/auth-go/internal/ethereum/secp256k1"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -117,6 +120,66 @@ func getKeyJWT(x *big.Int, y *big.Int) func(token *jwt.Token) (interface{}, erro
 			Y:     y,
 		}, nil
 	}
+}
+
+// Validates that the signature sent in the request was generated for the current request
+func validateRequestSignature(r *AuthRequest, pubKey string) error {
+	cred := r.Credentials
+	msg, err := r.Hash()
+	if err != nil {
+		return err
+	}
+
+	if err = validateSignature(cred["x-signature"], msg, pubKey); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Verifies  that the given pubkey created signature over message.
+func validateSignature(signature string, message []byte, pubKey string) error {
+	sigBytes, err := hexutil.Decode(utils.FormatHexString(signature))
+	if err != nil {
+		return InvalidCredentialError{fmt.Sprintf("unable to decode signature: %s", err.Error())}
+	}
+
+	key, err := hexutil.Decode(utils.FormatHexString(pubKey))
+	if err != nil {
+		return InvalidCredentialError{fmt.Sprintf("unable to decode publickey: %s", err.Error())}
+	}
+
+	if !secp256k1.VerifySignature(key, message, sigBytes) {
+		return InvalidRequestSignatureError{"invalid Signature"}
+	}
+	return nil
+}
+
+// Verifies request expiration
+func checkRequestExpiration(timestamp string, ttl int64) error {
+	t, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return InvalidCredentialError{"invalid timestamp"}
+	}
+	now := time.Now().Unix()
+	if abs(now-t) > ttl {
+		return ExpiredRequestError{"request expired"}
+	}
+	return nil
+}
+
+func abs(v int64) int64 {
+	if v > 0 {
+		return v
+	}
+	return -v
+}
+
+func validateCertificateType(cred map[string]string, credType string) error {
+	authType := cred["x-auth-type"]
+	if strings.ToLower(authType) != strings.ToLower(credType) {
+		return InvalidCredentialError{"invalid credential type"}
+	}
+	return nil
 }
 
 // InvalidAccessTokenError is a validation error in the JWT
