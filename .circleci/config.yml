@@ -25,7 +25,7 @@ jobs:
           name: Lint
           command: |
             golangci-lint run -v \
-              --concurrency << parameters.concurrency >>
+              --concurrency 2
 
 
 workflows:
