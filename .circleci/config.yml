@@ -14,12 +14,22 @@ jobs:
       - checkout
       - run: make test
 
-  linter:
-    executor:
-      name: circleci-golang
+  runlinter:
+    executor: circleci-golang
+    steps:
+      - checkout
+      - mod-download
+      - install-golangci-lint:
+          version: 1.15.0
+      - run:
+          name: Lint
+          command: |
+            golangci-lint run -v \
+              --concurrency << parameters.concurrency >>
+
 
 workflows:
   build_deploy:
     jobs:
       - build
-      - linter
+      - runlinter
