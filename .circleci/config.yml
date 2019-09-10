@@ -15,11 +15,11 @@ jobs:
       - run: make test
 
   runlinter:
-    executor: circleci-golang
+    executor: tools/circleci-golang
     steps:
       - checkout
       - tools/mod-download
-      - install-golangci-lint:
+      - tools/install-golangci-lint:
           version: 1.15.0
       - run:
           name: Lint
