@@ -177,10 +177,6 @@ const (
 	HeaderSignature = "x-signature"
 	// HeaderAuthType x-auth-type credential
 	HeaderAuthType = "x-auth-type"
-	// HeaderCert x-certificate credential
-	HeaderCert = "x-certificate"
-	// HeaderCertSignature x-certificate-signature credential
-	HeaderCertSignature = "x-certificate-signature"
 )
 
 // Result auth process output
