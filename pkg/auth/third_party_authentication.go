@@ -95,7 +95,7 @@ func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey strin
 		return nil, InvalidAccessTokenError{"access token payload missing required claims", MissingClaimsError}
 	}
 
-	if strings.ToLower(ephKey) != strings.ToLower(payload.EphemeralKey) {
+	if !strings.EqualFold(ephKey, payload.EphemeralKey) {
 		return nil, InvalidAccessTokenError{"access Token ephemeral Key does not match the request key", EphKeyMatchError}
 	}
 
@@ -177,7 +177,7 @@ func abs(v int64) int64 {
 
 func validateCertificateType(cred map[string]string, credType string) error {
 	authType := cred["x-auth-type"]
-	if strings.ToLower(authType) != strings.ToLower(credType) {
+	if !strings.EqualFold(authType, credType) {
 		return InvalidCredentialError{"invalid credential type"}
 	}
 	return nil
