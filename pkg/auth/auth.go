@@ -175,8 +175,6 @@ const (
 	HeaderAccessToken = "x-access-token"
 	// HeaderSignature x-signature credential
 	HeaderSignature = "x-signature"
-	// HeaderAuthType x-auth-type credential
-	HeaderAuthType = "x-auth-type"
 )
 
 // Result auth process output

@@ -267,14 +267,6 @@ var validateCredentialsTc = []validateCredentialsData{ //nolint
 		resultAssertion: assertErrorMessage,
 	},
 	{
-		name:      "Wrong Certificate type",
-		tolerance: 10000,
-		modifiedHeaders: map[string]string{
-			HeaderAuthType: "whatever"},
-		errorMessage:    "invalid credential type",
-		resultAssertion: assertErrorMessage,
-	},
-	{
 		name:      "Fail request way into future",
 		tolerance: 1000,
 		modifiedHeaders: map[string]string{

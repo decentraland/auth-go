@@ -41,13 +41,9 @@ func (a AccessTokenPayload) isValid() bool {
 func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	cred := r.Credentials
 	output := NewResultOutput()
-	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderAccessToken, HeaderSignature, HeaderAuthType}
+	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderAccessToken, HeaderSignature}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return output, MissingCredentialsError{err.Error()}
-	}
-
-	if err := validateCertificateType(cred, "third-party"); err != nil {
-		return output, err
 	}
 
 	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], thirdPartyUserIDPattern)
@@ -173,14 +169,6 @@ func abs(v int64) int64 {
 		return v
 	}
 	return -v
-}
-
-func validateCertificateType(cred map[string]string, credType string) error {
-	authType := cred["x-auth-type"]
-	if !strings.EqualFold(authType, credType) {
-		return InvalidCredentialError{"invalid credential type"}
-	}
-	return nil
 }
 
 // InvalidAccessTokenError is a validation error in the JWT

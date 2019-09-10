@@ -86,7 +86,6 @@ func (c *EphemeralKey) generateCredentials(
 	fields["x-signature"] = hex.EncodeToString(signature)
 	fields["x-identity"] = fmt.Sprintf("public key derived address: %s", pubKey)
 	fields["x-timestamp"] = strconv.FormatInt(timestamp, 10)
-	fields["x-auth-type"] = "third-party"
 	fields["x-access-token"] = accessToken
 
 	return fields, nil
