@@ -1,6 +1,7 @@
 run:
   skip-dirs:
     - internal/ethereum
+    - /root/project/internal/ethereum
 
 linters-settings:
   govet:
