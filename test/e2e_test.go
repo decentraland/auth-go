@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/decentraland/auth-go/internal/ethereum/crypto"
-	"github.com/decentraland/auth-go/internal/ethereum/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/decentraland/auth-go/pkg/auth"
 	"github.com/decentraland/auth-go/pkg/ephemeral"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
 )
 

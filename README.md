@@ -3,7 +3,7 @@ Provides Request authentication for Decentraland services
 
 ## Credentials generation
 
-This type of credential require the intervention of a third party (authentication server) in order to authenticate the user against a service provider
+This requires the intervention of a third party (authentication server) in order to authenticate the user against a service provider
 
 ```go
 import "github.com/decentraland/auth-go/pkg/ephemeral"
@@ -132,10 +132,6 @@ ok, err := authHandler.ApproveRequest(req)
 #### Custom Strategies
 
 The service provide could opt to implement its own auth strategy. The only thing to do is to implement  `AuthenticationStrategy` and `AuthorizationStrategy` interfaces 
-
-## go-ethereum
-
-The code under the [ethereum directory](internal/ethereum) was taken from [go-ethereum](https://github.com/ethereum/go-ethereum) implementation
 
 ## Copyright info
 
