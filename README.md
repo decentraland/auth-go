@@ -3,11 +3,7 @@ Provides Request authentication for Decentraland services
 
 ## Credentials generation
 
-Currently there are two types of credentials.  
-
-### Third Party Key generation
-
-This type of credential require the intervention of a third party (authentication server) in order to authenticate the user against a service provider
+This requires the intervention of a third party (authentication server) in order to authenticate the user against a service provider
 
 ```go
 import "github.com/decentraland/auth-go/pkg/ephemeral"
@@ -52,68 +48,9 @@ ephKey.MakeCredentials(msg, accessToken)
 | ------------- | ------------- |
 | x-signature | This is the signed request information (http method + url + body + timestamp) with the generated ephemeral key. This is vital to prevent replay attacks. | 
 | x-timestamp | Request timestamp, in Unix time. | 
-| x-auth-type | Indicates the type of credential, in this case “third-party” | 
 | x-identity | The users ephemeral public key used in the access token creation and the user ID | 
 | x-access-token  | Access token. Contains the public ephemeral key and it  is signed by the granting authority with its own private key. | 
 
-
-### Self granted keys
-
-A user with an Ethereum account can generate a set of keys linked to the original account.
-
-```go
-import (
-	"github.com/decentraland/auth-go/internal/ethereum"
-	"github.com/decentraland/auth-go/pkg/ephemeral"
-)
-
-nodeAddress := "http://127.0.0.1:8545"
-accountPass := ""
-
-c, _ := ethereum.NewEthClient(nodeAddress)
-acc, _ := c.GetDefaultAccount()
-
-accInfo := &ephemeral.EthAccountInfo{Account: acc, Passphrase: accountPass}
-
-timeToLive := 10 // In seconds
-
-ephKey, _ := ephemeral.GenerateEthEphemeralKey(accInfo, c, timeToLive)
-```  
-
-#### Request credentials generation
-
-Once you have your credentials you should be able to add the required headers to the request sent to the server who need to authenticate the user
-
-##### HTTP Requests
-```go
-import (
-	"net/http"
-	"strings"
-)
-
-req, _ := http.NewRequest("POST", "https://yourserver.org/api/resource", strings.NewReader("{\"param\":\"data\"}"))
-ephKey.AddRequestHeaders(req)
-```
-
-##### Non HTTP Requests
-```go
-import "github.com/decentraland/auth-go/pkg/ephemeral"
-
-ephKey, _ := ephemeral.GenerateEthBasedCredential(accInfo, c, timeToLive)
-msg := []byte("Your Message")
-ephKey.MakeCredentials(msg, now)
-```
-
-##### Generated credentials
-
-| Header  | Meaning | 
-| ------------- | ------------- |
-| x-signature | This is the signed request information (http method + url + body + timestamp) with the generated ephemeral key. This is vital to prevent replay attacks. | 
-| x-timestamp | Request timestamp, in Unix time. | 
-| x-auth-type | Indicates the type of credential, in this case “self-granted” | 
-| x-identity | Includes information about the EHT address that generated the request and the generated ephemeral public key. | 
-| x-certificate | Message that links the ephemeral key with the original ETH account. | 
-| x-certificate-signature | Signature of the "x-certificate" header using the ETH key | 
 
 ## Request validation
 
@@ -121,9 +58,9 @@ The service providers will need to authenticate the users based on the informati
 
 ### Authentication Strategies
 
-We define three basic Authentication strategies
+We define two basic Authentication strategies
 
-#### Third party strategy
+#### Authentication based on a Third party
 
 The service provider will need to know the entity who signs the access token, otherwise, the request will be rejected.
 
@@ -171,53 +108,6 @@ result, err := authHandler.ApproveRequest(req)
 userID := result.GetUserID() // Extracted from the access token
 ```
 
-#### Self Granted strategy
-
-```go
-import (
-	"github.com/decentraland/auth-go/pkg/auth"
-	"net/http"
-)
-
-reqTTL := 30 // Request time to live in seconds
-authnStrategy := &authentication.SelfGrantedStrategy{RequestLifeSpan: reqTTL}
-authzStrategy := &authorization.AllowAllStrategy{}
-authHandler := auth.NewAuthProvider(authnStrategy, authzStrategy)
-
-var httpRequest http.Response
-// httpRequest = ...
-serverPublicUrl := 'https://your.service.com'
-req, _ := auth.MakeFromHttpRequest(httpRequest, serverPublicUrl)
-result, err := authHandler.ApproveRequest(req)
-
-// Get UserID
-userID := result.GetUserID() // Eth Address, extracted from the Certificate
-```
-
-##### Non HTTP Requests
-```go
-import (
-	"github.com/decentraland/auth-go/pkg/auth"
-	"github.com/decentraland/auth-go/pkg/keys"
-)
-
-
-msgCredentials := make(map[string]string)
-
-msgCredentials[auth.HeaderAccessToken] = ""
-//...
-msgCredentials[auth.HeaderTimestamp] = "150000000"
-
-msg := []byte("Your Message To Validate")
-
-req, _ := auth.AuthRequest{Credentials: msgCredentials, Content: msg}
-result, err := authHandler.ApproveRequest(req)
-
-// Get UserID
-userID := result.GetUserID() // Eth Address, extracted from the Certificate
-
-```
-
 #### Allow All
 
 ```go
@@ -239,7 +129,15 @@ req, _ := http.TransformHttpRequest(httpRequest)
 ok, err := authHandler.ApproveRequest(req)
 ```
 
+#### Custom Strategies
+
+The service provide could opt to implement its own auth strategy. The only thing to do is to implement  `AuthenticationStrategy` and `AuthorizationStrategy` interfaces 
+
 ## Copyright info
 
 This repository is protected with a standard Apache 2 licence. See the terms and conditions in the [LICENSE](https://github.com/decentraland/auth-go/blob/master/LICENSE) file.
+
+
+
+
 

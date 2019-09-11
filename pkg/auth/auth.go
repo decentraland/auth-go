@@ -175,12 +175,6 @@ const (
 	HeaderAccessToken = "x-access-token"
 	// HeaderSignature x-signature credential
 	HeaderSignature = "x-signature"
-	// HeaderAuthType x-auth-type credential
-	HeaderAuthType = "x-auth-type"
-	// HeaderCert x-certificate credential
-	HeaderCert = "x-certificate"
-	// HeaderCertSignature x-certificate-signature credential
-	HeaderCertSignature = "x-certificate-signature"
 )
 
 // Result auth process output
@@ -257,4 +251,20 @@ type InvalidCertificateError struct {
 
 func (e InvalidCertificateError) Error() string {
 	return e.message
+}
+
+// AllowAllAuthzStrategy  authorize all requests
+type AllowAllAuthzStrategy struct{}
+
+// Authorize all requests
+func (di *AllowAllAuthzStrategy) Authorize(r *AuthRequest) (Result, error) {
+	return NewResultOutput(), nil
+}
+
+// AllowAllAuthnStrategy authenticates all requests
+type AllowAllAuthnStrategy struct{}
+
+// Authenticate all requests
+func (s *AllowAllAuthnStrategy) Authenticate(r *AuthRequest) (Result, error) {
+	return NewResultOutput(), nil
 }

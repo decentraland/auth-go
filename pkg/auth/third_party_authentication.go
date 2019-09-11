@@ -6,8 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 
 	"github.com/decentraland/auth-go/internal/utils"
 	"github.com/dgrijalva/jwt-go"
@@ -37,13 +41,9 @@ func (a AccessTokenPayload) isValid() bool {
 func (s *ThirdPartyStrategy) Authenticate(r *AuthRequest) (Result, error) {
 	cred := r.Credentials
 	output := NewResultOutput()
-	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderAccessToken, HeaderSignature, HeaderAuthType}
+	requiredCredentials := []string{HeaderIdentity, HeaderTimestamp, HeaderAccessToken, HeaderSignature}
 	if err := utils.ValidateRequiredCredentials(cred, requiredCredentials); err != nil {
 		return output, MissingCredentialsError{err.Error()}
-	}
-
-	if err := validateCertificateType(cred, "third-party"); err != nil {
-		return output, err
 	}
 
 	tokens, err := utils.ParseTokensWithRegex(cred[HeaderIdentity], thirdPartyUserIDPattern)
@@ -91,7 +91,7 @@ func validateAccessToken(token string, trustedKey *ecdsa.PublicKey, ephKey strin
 		return nil, InvalidAccessTokenError{"access token payload missing required claims", MissingClaimsError}
 	}
 
-	if strings.ToLower(ephKey) != strings.ToLower(payload.EphemeralKey) {
+	if !strings.EqualFold(ephKey, payload.EphemeralKey) {
 		return nil, InvalidAccessTokenError{"access Token ephemeral Key does not match the request key", EphKeyMatchError}
 	}
 
@@ -117,6 +117,58 @@ func getKeyJWT(x *big.Int, y *big.Int) func(token *jwt.Token) (interface{}, erro
 			Y:     y,
 		}, nil
 	}
+}
+
+// Validates that the signature sent in the request was generated for the current request
+func validateRequestSignature(r *AuthRequest, pubKey string) error {
+	cred := r.Credentials
+	msg, err := r.Hash()
+	if err != nil {
+		return err
+	}
+
+	if err = validateSignature(cred["x-signature"], msg, pubKey); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Verifies  that the given pubkey created signature over message.
+func validateSignature(signature string, message []byte, pubKey string) error {
+	sigBytes, err := hexutil.Decode(utils.FormatHexString(signature))
+	if err != nil {
+		return InvalidCredentialError{fmt.Sprintf("unable to decode signature: %s", err.Error())}
+	}
+
+	key, err := hexutil.Decode(utils.FormatHexString(pubKey))
+	if err != nil {
+		return InvalidCredentialError{fmt.Sprintf("unable to decode publickey: %s", err.Error())}
+	}
+
+	if !secp256k1.VerifySignature(key, message, sigBytes) {
+		return InvalidRequestSignatureError{"invalid Signature"}
+	}
+	return nil
+}
+
+// Verifies request expiration
+func checkRequestExpiration(timestamp string, ttl int64) error {
+	t, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return InvalidCredentialError{"invalid timestamp"}
+	}
+	now := time.Now().Unix()
+	if abs(now-t) > ttl {
+		return ExpiredRequestError{"request expired"}
+	}
+	return nil
+}
+
+func abs(v int64) int64 {
+	if v > 0 {
+		return v
+	}
+	return -v
 }
 
 // InvalidAccessTokenError is a validation error in the JWT
